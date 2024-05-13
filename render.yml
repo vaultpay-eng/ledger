@@ -1,0 +1,30 @@
+services:
+- type: web
+  name: ledger-app
+  env: docker
+  dockerfilePath: './Dockerfile'  # You need to provide a Dockerfile path for Render
+  buildCommand: 'go build -o main .'  # Example build command, adjust as needed
+  startCommand: './main serve'
+  envVars:
+    - key: STORAGE_DRIVER
+      value: "postgres"
+    - key: DEBUG
+      value: "true"
+    - key: PORT
+      value: "3068"
+    - key: STORAGE_POSTGRES_CONN_STRING
+      value: "postgresql://ledger:ledger@${db.DATABASE_INTERNAL_HOSTNAME}:5432/ledger?sslmode=disable"
+  ports:
+    - port: 3068
+
+databases:
+- type: postgres
+  name: db
+  version: '15'
+  envVars:
+    - key: POSTGRES_USER
+      value: "ledger"
+    - key: POSTGRES_PASSWORD
+      value: "ledger"
+    - key: POSTGRES_DB
+      value: "ledger"
