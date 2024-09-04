@@ -1,0 +1,31 @@
+services:
+- type: web
+  name: formance-ledger
+  runtime: image
+  image:
+    url: ghcr.io/formancehq/ledger:v1.10.0
+  plan: starter
+  envVars:
+  - key: PORT
+    value: 3068
+  - key: NUMARY_STORAGE_POSTGRES_CONN_STRING
+    fromDatabase:
+      name: ledger-database
+      property: connectionString
+  - key: NUMARY_STORAGE_DRIVER
+    value: postgres
+  - key: NUMARY_UI_HTTP_BIND_ADDRESS
+    value: 0.0.0.0:3068
+  - key: NUMARY_SERVER_HTTP_BIND_ADDRESS
+    value: 0.0.0.0:3068
+  region: ohio
+version: "1"
+
+databases:
+  - name: ledger-database
+    plan: standard
+    databaseName: ledger
+    postgresMajorVersion: "15"
+    user: ledger
+    region: ohio
+    ipAllowList: [] # private connection only
