@@ -1,30 +1,30 @@
 services:
-- type: web
-  name: ledger-formance
-  runtime: image
-  image:
-    url: ghcr.io/formancehq/ledger:latest
-  plan: standard
-  envVars:
-  - key: POSTGRES_URI
-    fromDatabase:
-      name: ledger-database
-      property: connectionString
-  region: ohio
-version: "1"
-- type: web
-  name: ledger-formance-dev
-  runtime: image
-  image:
-    url: ghcr.io/formancehq/ledger:latest
-  plan: starter
-  envVars:
-  - key: POSTGRES_URI
-    fromDatabase:
-      name: ledger-db-dev
-      property: connectionString
-  region: ohio
-version: "1"
+  - type: web
+    name: ledger-formance
+    runtime: image
+    image:
+      url: ghcr.io/formancehq/ledger:latest
+    plan: standard
+    envVars:
+    - key: POSTGRES_URI
+      fromDatabase:
+        name: ledger-database
+        property: connectionString
+    region: ohio
+  version: "1"
+  - type: web
+    name: ledger-formance-dev
+    runtime: image
+    image:
+      url: ghcr.io/formancehq/ledger:latest
+    plan: starter
+    envVars:
+    - key: POSTGRES_URI
+      fromDatabase:
+        name: ledger-db-dev
+        property: connectionString
+    region: ohio
+  version: "1"
 
 databases:
   - name: ledger-database
