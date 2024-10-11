@@ -6,8 +6,6 @@ services:
     url: ghcr.io/formancehq/ledger:latest
   plan: standard
   envVars:
-  - key: PORT
-    value: 3068
   - key: POSTGRES_URI
     fromDatabase:
       name: ledger-database
