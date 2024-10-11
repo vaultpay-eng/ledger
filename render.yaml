@@ -18,7 +18,7 @@ version: "1"
 databases:
   - name: ledger-database
     plan: standard
-    databaseName: ledger-database
+    databaseName: ledger_database
     postgresMajorVersion: "16"
     user: ledger
     region: ohio
