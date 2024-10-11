@@ -27,6 +27,13 @@ version: "1"
 version: "1"
 
 databases:
+  - name: ledger-database
+    plan: basic-1gb
+    databaseName: ledger_database
+    postgresMajorVersion: "16"
+    user: ledger
+    region: ohio
+    ipAllowList: [] # private connection only
   - name: ledger-db-dev
     plan: basic-1gb
     databaseName: ledger_db_dev
