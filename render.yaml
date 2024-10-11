@@ -12,11 +12,24 @@ services:
       property: connectionString
   region: ohio
 version: "1"
+- type: web
+  name: ledger-formance-dev
+  runtime: image
+  image:
+    url: ghcr.io/formancehq/ledger:latest
+  plan: starter
+  envVars:
+  - key: POSTGRES_URI
+    fromDatabase:
+      name: ledger-db-dev
+      property: connectionString
+  region: ohio
+version: "1"
 
 databases:
-  - name: ledger-database
+  - name: ledger-db-dev
     plan: basic-1gb
-    databaseName: ledger_database
+    databaseName: ledger_db_dev
     postgresMajorVersion: "16"
     user: ledger
     region: ohio
