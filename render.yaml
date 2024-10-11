@@ -17,7 +17,7 @@ version: "1"
 
 databases:
   - name: ledger-database
-    plan: standard
+    plan: basic-1gb
     databaseName: ledger_database
     postgresMajorVersion: "16"
     user: ledger
