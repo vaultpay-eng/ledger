@@ -11,7 +11,7 @@ services:
         name: ledger-database
         property: connectionString
     region: ohio
-  version: "1"
+    
   - type: web
     name: ledger-formance-dev
     runtime: image
@@ -24,7 +24,6 @@ services:
         name: ledger-db-dev
         property: connectionString
     region: ohio
-  version: "1"
 
 databases:
   - name: ledger-database
