@@ -3,7 +3,7 @@ services:
     name: ledger-formance
     runtime: image
     image:
-      url: ghcr.io/formancehq/ledger:latest
+      url: ghcr.io/formancehq/ledger:v2.0.19
     plan: standard
     envVars:
     - key: POSTGRES_URI
@@ -20,7 +20,7 @@ services:
     name: ledger-formance-dev
     runtime: image
     image:
-      url: ghcr.io/formancehq/ledger:latest
+      url: ghcr.io/formancehq/ledger:v2.0.19
     plan: starter
     envVars:
     - key: POSTGRES_URI
