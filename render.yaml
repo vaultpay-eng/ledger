@@ -10,10 +10,6 @@ services:
       fromDatabase:
         name: ledger-database
         property: connectionString
-    - key: PUBLISHER_HTTP_ENABLED
-      value: true
-    - key: PUBLISHER_TOPIC_MAPPING
-      value: "*:https://play.svix.com/view/e_yFLqQidXs1o4y1a4ZXGmOXwITPt"
     region: ohio
     
   - type: web
