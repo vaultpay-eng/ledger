@@ -4,41 +4,52 @@ import (
 	_ "embed"
 
 	"github.com/go-chi/chi/v5"
-
-	"github.com/formancehq/go-libs/auth"
-	"github.com/formancehq/go-libs/health"
-	"github.com/formancehq/ledger/internal/api/backend"
-	"github.com/formancehq/ledger/internal/engine"
-	"github.com/formancehq/ledger/internal/opentelemetry/metrics"
-	"github.com/formancehq/ledger/internal/storage/driver"
-	"go.opentelemetry.io/otel/metric"
-	"go.opentelemetry.io/otel/metric/noop"
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/fx"
+
+	"github.com/formancehq/go-libs/v4/auth"
+	"github.com/formancehq/go-libs/v4/health"
+
+	"github.com/formancehq/ledger/internal/api/bulking"
+	"github.com/formancehq/ledger/internal/controller/system"
+	storagecommon "github.com/formancehq/ledger/internal/storage/common"
 )
 
+type BulkConfig struct {
+	MaxSize  int
+	Parallel int
+}
+
 type Config struct {
-	Version  string
-	ReadOnly bool
-	Debug    bool
+	Version    string
+	Debug      bool
+	Bulk       BulkConfig
+	Pagination storagecommon.PaginationConfig
+	Exporters  bool
 }
 
 func Module(cfg Config) fx.Option {
 	return fx.Options(
 		fx.Provide(func(
-			backend backend.Backend,
-			healthController *health.HealthController,
-			globalMetricsRegistry metrics.GlobalRegistry,
-			a auth.Authenticator,
+			backend system.Controller,
+			authenticator auth.Authenticator,
+			tracerProvider trace.TracerProvider,
 		) chi.Router {
-			return NewRouter(backend, healthController, globalMetricsRegistry, a, cfg.ReadOnly, cfg.Debug)
+			return NewRouter(
+				backend,
+				authenticator,
+				cfg.Version,
+				cfg.Debug,
+				WithTracer(tracerProvider.Tracer("api")),
+				WithBulkMaxSize(cfg.Bulk.MaxSize),
+				WithBulkerFactory(bulking.NewDefaultBulkerFactory(
+					bulking.WithParallelism(cfg.Bulk.Parallel),
+					bulking.WithTracer(tracerProvider.Tracer("api.bulking")),
+				)),
+				WithPaginationConfiguration(cfg.Pagination),
+				WithExporters(cfg.Exporters),
+			)
 		}),
-		fx.Provide(func(storageDriver *driver.Driver, resolver *engine.Resolver) backend.Backend {
-			return backend.NewDefaultBackend(storageDriver, cfg.Version, resolver)
-		}),
-		fx.Provide(fx.Annotate(noop.NewMeterProvider, fx.As(new(metric.MeterProvider)))),
-		fx.Decorate(fx.Annotate(func(meterProvider metric.MeterProvider) (metrics.GlobalRegistry, error) {
-			return metrics.RegisterGlobalRegistry(meterProvider)
-		}, fx.As(new(metrics.GlobalRegistry)))),
 		health.Module(),
 	)
 }

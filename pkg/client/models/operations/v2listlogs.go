@@ -3,8 +3,8 @@
 package operations
 
 import (
-	"github.com/formancehq/stack/ledger/client/internal/utils"
-	"github.com/formancehq/stack/ledger/client/models/components"
+	"github.com/formancehq/ledger/pkg/client/internal/utils"
+	"github.com/formancehq/ledger/pkg/client/models/components"
 	"time"
 )
 
@@ -19,8 +19,12 @@ type V2ListLogsRequest struct {
 	// Set to the value of previous for the previous page of results.
 	// No other parameters can be set when this parameter is set.
 	//
-	Cursor      *string        `queryParam:"style=form,explode=true,name=cursor"`
-	Pit         *time.Time     `queryParam:"style=form,explode=true,name=pit"`
+	Cursor *string    `queryParam:"style=form,explode=true,name=cursor"`
+	Pit    *time.Time `queryParam:"style=form,explode=true,name=pit"`
+	// Sort results using a field name and order (ascending or descending).
+	// Format: `<field>:<order>`, where `<field>` is the field name and `<order>` is either `asc` or `desc`.
+	//
+	Sort        *string        `queryParam:"style=form,explode=true,name=sort"`
 	RequestBody map[string]any `request:"mediaType=application/json"`
 }
 
@@ -63,9 +67,16 @@ func (o *V2ListLogsRequest) GetPit() *time.Time {
 	return o.Pit
 }
 
-func (o *V2ListLogsRequest) GetRequestBody() map[string]any {
+func (o *V2ListLogsRequest) GetSort() *string {
 	if o == nil {
 		return nil
+	}
+	return o.Sort
+}
+
+func (o *V2ListLogsRequest) GetRequestBody() map[string]any {
+	if o == nil {
+		return map[string]any{}
 	}
 	return o.RequestBody
 }

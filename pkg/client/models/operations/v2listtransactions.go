@@ -5,31 +5,32 @@ package operations
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/formancehq/stack/ledger/client/internal/utils"
-	"github.com/formancehq/stack/ledger/client/models/components"
+	"github.com/formancehq/ledger/pkg/client/internal/utils"
+	"github.com/formancehq/ledger/pkg/client/models/components"
 	"time"
 )
 
-type Order string
+// QueryParamOrder - Deprecated: Use sort param
+type QueryParamOrder string
 
 const (
-	OrderEffective Order = "effective"
+	QueryParamOrderEffective QueryParamOrder = "effective"
 )
 
-func (e Order) ToPointer() *Order {
+func (e QueryParamOrder) ToPointer() *QueryParamOrder {
 	return &e
 }
-func (e *Order) UnmarshalJSON(data []byte) error {
+func (e *QueryParamOrder) UnmarshalJSON(data []byte) error {
 	var v string
 	if err := json.Unmarshal(data, &v); err != nil {
 		return err
 	}
 	switch v {
 	case "effective":
-		*e = Order(v)
+		*e = QueryParamOrder(v)
 		return nil
 	default:
-		return fmt.Errorf("invalid value for Order: %v", v)
+		return fmt.Errorf("invalid value for QueryParamOrder: %v", v)
 	}
 }
 
@@ -44,11 +45,18 @@ type V2ListTransactionsRequest struct {
 	// Set to the value of previous for the previous page of results.
 	// No other parameters can be set when this parameter is set.
 	//
-	Cursor      *string        `queryParam:"style=form,explode=true,name=cursor"`
-	Expand      *string        `queryParam:"style=form,explode=true,name=expand"`
-	Pit         *time.Time     `queryParam:"style=form,explode=true,name=pit"`
-	Order       *Order         `queryParam:"style=form,explode=true,name=order"`
-	Reverse     *bool          `queryParam:"style=form,explode=true,name=reverse"`
+	Cursor *string    `queryParam:"style=form,explode=true,name=cursor"`
+	Expand *string    `queryParam:"style=form,explode=true,name=expand"`
+	Pit    *time.Time `queryParam:"style=form,explode=true,name=pit"`
+	// Deprecated: Use sort param
+	//
+	// Deprecated: This will be removed in a future release, please migrate away from it as soon as possible.
+	Order   *QueryParamOrder `queryParam:"style=form,explode=true,name=order"`
+	Reverse *bool            `queryParam:"style=form,explode=true,name=reverse"`
+	// Sort results using a field name and order (ascending or descending).
+	// Format: `<field>:<order>`, where `<field>` is the field name and `<order>` is either `asc` or `desc`.
+	//
+	Sort        *string        `queryParam:"style=form,explode=true,name=sort"`
 	RequestBody map[string]any `request:"mediaType=application/json"`
 }
 
@@ -98,7 +106,7 @@ func (o *V2ListTransactionsRequest) GetPit() *time.Time {
 	return o.Pit
 }
 
-func (o *V2ListTransactionsRequest) GetOrder() *Order {
+func (o *V2ListTransactionsRequest) GetOrder() *QueryParamOrder {
 	if o == nil {
 		return nil
 	}
@@ -112,9 +120,16 @@ func (o *V2ListTransactionsRequest) GetReverse() *bool {
 	return o.Reverse
 }
 
-func (o *V2ListTransactionsRequest) GetRequestBody() map[string]any {
+func (o *V2ListTransactionsRequest) GetSort() *string {
 	if o == nil {
 		return nil
+	}
+	return o.Sort
+}
+
+func (o *V2ListTransactionsRequest) GetRequestBody() map[string]any {
+	if o == nil {
+		return map[string]any{}
 	}
 	return o.RequestBody
 }

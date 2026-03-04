@@ -2,48 +2,86 @@ package v2
 
 import (
 	"net/http"
+	"strconv"
 
-	sharedapi "github.com/formancehq/go-libs/api"
-	"github.com/formancehq/ledger/internal/api/backend"
-	"github.com/formancehq/ledger/internal/storage/ledgerstore"
+	"github.com/formancehq/go-libs/v4/api"
+	"github.com/formancehq/go-libs/v4/bun/bunpaginate"
+	"github.com/formancehq/go-libs/v4/time"
 
-	"github.com/formancehq/go-libs/pointer"
-
-	"github.com/formancehq/go-libs/bun/bunpaginate"
+	ledger "github.com/formancehq/ledger/internal"
+	"github.com/formancehq/ledger/internal/api/common"
+	storagecommon "github.com/formancehq/ledger/internal/storage/common"
 )
 
-func getVolumesWithBalances(w http.ResponseWriter, r *http.Request) {
+func readVolumes(paginationConfig storagecommon.PaginationConfig) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		l := common.LedgerFromContext(r.Context())
 
-	l := backend.LedgerFromContext(r.Context())
+		var groupBy int
+		if queryGroupBy := r.URL.Query().Get("groupBy"); queryGroupBy != "" {
+			v, err := strconv.ParseInt(queryGroupBy, 10, 64)
+			if err != nil {
+				api.BadRequest(w, common.ErrValidation, err)
+				return
+			}
+			groupBy = int(v)
+		}
 
-	query, err := bunpaginate.Extract[ledgerstore.GetVolumesWithBalancesQuery](r, func() (*ledgerstore.GetVolumesWithBalancesQuery, error) {
-		options, err := getPaginatedQueryOptionsOfFiltersForVolumes(r)
+		// Kept for compatibility with old version of the ledger
+		// the parameters used should bt pit and oot now
+		var (
+			pit *time.Time
+			oot *time.Time
+			err error
+		)
+		if r.URL.Query().Get("endTime") != "" {
+			pit, err = getDate(r, "endTime")
+			if err != nil {
+				api.BadRequest(w, common.ErrValidation, err)
+				return
+			}
+		}
+
+		if r.URL.Query().Get("startTime") != "" {
+			oot, err = getDate(r, "startTime")
+			if err != nil {
+				api.BadRequest(w, common.ErrValidation, err)
+				return
+			}
+		}
+
+		rq, err := getPaginatedQuery[ledger.GetVolumesOptions](
+			r,
+			paginationConfig,
+			"account",
+			bunpaginate.OrderAsc,
+			func(rq *storagecommon.ResourceQuery[ledger.GetVolumesOptions]) {
+				if groupBy > 0 {
+					rq.Opts.GroupLvl = groupBy
+				}
+				if pit != nil {
+					rq.PIT = pit
+				}
+				if oot != nil {
+					rq.OOT = oot
+				}
+
+				rq.Opts.UseInsertionDate = api.QueryParamBool(r, "insertionDate")
+			},
+		)
 		if err != nil {
-			return nil, err
+			api.BadRequest(w, common.ErrValidation, err)
+			return
 		}
 
-		getVolumesWithBalancesQuery := ledgerstore.NewGetVolumesWithBalancesQuery(*options)
-		return pointer.For(getVolumesWithBalancesQuery), nil
-
-	})
-
-	if err != nil {
-		sharedapi.BadRequest(w, ErrValidation, err)
-		return
-	}
-
-	cursor, err := l.GetVolumesWithBalances(r.Context(), *query)
-
-	if err != nil {
-		switch {
-		case ledgerstore.IsErrInvalidQuery(err):
-			sharedapi.BadRequest(w, ErrValidation, err)
-		default:
-			sharedapi.InternalServerError(w, r, err)
+		cursor, err := l.GetVolumesWithBalances(r.Context(), rq)
+		if err != nil {
+			common.HandleCommonPaginationErrors(w, r, err)
+			return
 		}
-		return
+
+		api.RenderCursor(w, *bunpaginate.MapCursor(cursor, func(volumes ledger.VolumesWithBalanceByAssetByAccount) any {
+			return renderVolumesWithBalances(r, volumes)
+		}))
 	}
-
-	sharedapi.RenderCursor(w, *cursor)
-
 }

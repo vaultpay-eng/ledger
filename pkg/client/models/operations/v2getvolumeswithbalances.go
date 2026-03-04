@@ -3,8 +3,8 @@
 package operations
 
 import (
-	"github.com/formancehq/stack/ledger/client/internal/utils"
-	"github.com/formancehq/stack/ledger/client/models/components"
+	"github.com/formancehq/ledger/pkg/client/internal/utils"
+	"github.com/formancehq/ledger/pkg/client/models/components"
 	"time"
 )
 
@@ -25,7 +25,11 @@ type V2GetVolumesWithBalancesRequest struct {
 	// Use insertion date instead of effective date
 	InsertionDate *bool `queryParam:"style=form,explode=true,name=insertionDate"`
 	// Group volumes and balance by the level of the segment of the address
-	GroupBy     *int64         `queryParam:"style=form,explode=true,name=groupBy"`
+	GroupBy *int64 `queryParam:"style=form,explode=true,name=groupBy"`
+	// Sort results using a field name and order (ascending or descending).
+	// Format: `<field>:<order>`, where `<field>` is the field name and `<order>` is either `asc` or `desc`.
+	//
+	Sort        *string        `queryParam:"style=form,explode=true,name=sort"`
 	RequestBody map[string]any `request:"mediaType=application/json"`
 }
 
@@ -89,9 +93,16 @@ func (o *V2GetVolumesWithBalancesRequest) GetGroupBy() *int64 {
 	return o.GroupBy
 }
 
-func (o *V2GetVolumesWithBalancesRequest) GetRequestBody() map[string]any {
+func (o *V2GetVolumesWithBalancesRequest) GetSort() *string {
 	if o == nil {
 		return nil
+	}
+	return o.Sort
+}
+
+func (o *V2GetVolumesWithBalancesRequest) GetRequestBody() map[string]any {
+	if o == nil {
+		return map[string]any{}
 	}
 	return o.RequestBody
 }

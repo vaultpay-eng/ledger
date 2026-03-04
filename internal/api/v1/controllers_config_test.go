@@ -1,34 +1,33 @@
-package v1_test
+package v1
 
 import (
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
-	"github.com/formancehq/go-libs/bun/bunpaginate"
-
-	sharedapi "github.com/formancehq/go-libs/api"
-	"github.com/formancehq/go-libs/auth"
-	v1 "github.com/formancehq/ledger/internal/api/v1"
-
-	"github.com/formancehq/ledger/internal/storage/systemstore"
-
-	"github.com/formancehq/ledger/internal/opentelemetry/metrics"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
+
+	"github.com/formancehq/go-libs/v4/api"
+	"github.com/formancehq/go-libs/v4/auth"
+	"github.com/formancehq/go-libs/v4/bun/bunpaginate"
+
+	ledger "github.com/formancehq/ledger/internal"
+	ledgercontroller "github.com/formancehq/ledger/internal/controller/ledger"
 )
 
 func TestGetInfo(t *testing.T) {
 	t.Parallel()
 
-	backend, _ := newTestingBackend(t, false)
-	router := v1.NewRouter(backend, nil, metrics.NewNoOpRegistry(), auth.NewNoAuth(), testing.Verbose())
+	systemController, _ := newTestingSystemController(t, false)
+	router := NewRouter(systemController, auth.NewNoAuth(), "develop", os.Getenv("DEBUG") == "true")
 
-	backend.
+	systemController.
 		EXPECT().
 		ListLedgers(gomock.Any(), gomock.Any()).
-		Return(&bunpaginate.Cursor[systemstore.Ledger]{
-			Data: []systemstore.Ledger{
+		Return(&bunpaginate.Cursor[ledger.Ledger]{
+			Data: []ledger.Ledger{
 				{
 					Name: "a",
 				},
@@ -38,10 +37,10 @@ func TestGetInfo(t *testing.T) {
 			},
 		}, nil)
 
-	backend.
+	systemController.
 		EXPECT().
-		GetVersion().
-		Return("latest")
+		GetSchemaEnforcementMode(gomock.Any()).
+		Return(ledgercontroller.SchemaEnforcementAudit)
 
 	req := httptest.NewRequest(http.MethodGet, "/_info", nil)
 	rec := httptest.NewRecorder()
@@ -50,13 +49,14 @@ func TestGetInfo(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, rec.Code)
 
-	info, _ := sharedapi.DecodeSingleResponse[v1.ConfigInfo](t, rec.Body)
+	info, _ := api.DecodeSingleResponse[ConfigInfo](t, rec.Body)
 
-	require.EqualValues(t, v1.ConfigInfo{
+	require.EqualValues(t, ConfigInfo{
 		Server:  "ledger",
-		Version: "latest",
-		Config: &v1.LedgerConfig{
-			LedgerStorage: &v1.LedgerStorage{
+		Version: "develop",
+		Config: &LedgerConfig{
+			SchemaEnforcementMode: ledgercontroller.SchemaEnforcementAudit,
+			LedgerStorage: &LedgerStorage{
 				Driver:  "postgres",
 				Ledgers: []string{"a", "b"},
 			},

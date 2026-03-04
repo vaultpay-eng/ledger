@@ -1,14 +1,53 @@
 package vm
 
 import (
+	"fmt"
 	"math/big"
 
-	"github.com/formancehq/ledger/internal/machine"
+	"github.com/formancehq/go-libs/v4/metadata"
+	"github.com/formancehq/go-libs/v4/time"
 
-	"github.com/formancehq/go-libs/metadata"
 	ledger "github.com/formancehq/ledger/internal"
-	"github.com/pkg/errors"
+	"github.com/formancehq/ledger/internal/machine"
 )
+
+type RunScript struct {
+	Script
+	Timestamp time.Time         `json:"timestamp"`
+	Metadata  metadata.Metadata `json:"metadata"`
+	Reference string            `json:"reference"`
+}
+
+type Script struct {
+	Plain    string            `json:"plain,omitempty"`
+	Template string            `json:"template,omitempty"`
+	Vars     map[string]string `json:"vars" swaggertype:"object"`
+}
+
+type ScriptV1 struct {
+	Script
+	Vars map[string]any `json:"vars"`
+}
+
+func (s ScriptV1) ToCore() Script {
+	s.Script.Vars = map[string]string{}
+	for k, v := range s.Vars {
+		switch v := v.(type) {
+		case string:
+			s.Script.Vars[k] = v
+		case map[string]any:
+			switch amount := v["amount"].(type) {
+			case string:
+				s.Script.Vars[k] = fmt.Sprintf("%s %s", v["asset"], amount)
+			case float64:
+				s.Script.Vars[k] = fmt.Sprintf("%s %d", v["asset"], int(amount))
+			}
+		default:
+			s.Script.Vars[k] = fmt.Sprint(v)
+		}
+	}
+	return s.Script
+}
 
 type Result struct {
 	Postings        ledger.Postings
@@ -16,10 +55,10 @@ type Result struct {
 	AccountMetadata map[string]metadata.Metadata
 }
 
-func Run(m *Machine, script ledger.RunScript) (*Result, error) {
+func Run(m *Machine, script RunScript) (*Result, error) {
 	err := m.Execute()
 	if err != nil {
-		return nil, errors.Wrap(err, "script execution failed")
+		return nil, fmt.Errorf("script execution failed: %w", err)
 	}
 
 	result := Result{

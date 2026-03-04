@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/formancehq/go-libs/metadata"
-	"github.com/formancehq/ledger/internal"
+	"github.com/formancehq/go-libs/v4/metadata"
+
+	ledger "github.com/formancehq/ledger/internal"
 	"github.com/formancehq/ledger/internal/machine/script/compiler"
-	vm2 "github.com/formancehq/ledger/internal/machine/vm"
+	"github.com/formancehq/ledger/internal/machine/vm"
 )
 
 func main() {
@@ -32,7 +33,7 @@ func main() {
 	}
 	fmt.Print(program)
 
-	m := vm2.NewMachine(*program)
+	m := vm.NewMachine(*program)
 	m.Debug = true
 
 	if err = m.SetVarsFromJSON(map[string]string{
@@ -50,9 +51,9 @@ func main() {
 		},
 	}
 
-	store := vm2.StaticStore{}
+	store := vm.StaticStore{}
 	for account, balances := range initialVolumes {
-		store[account] = &vm2.AccountWithBalances{
+		store[account] = &vm.AccountWithBalances{
 			Account: ledger.Account{
 				Address:  account,
 				Metadata: metadata.Metadata{},
@@ -61,7 +62,7 @@ func main() {
 		}
 	}
 
-	_, _, err = m.ResolveResources(context.Background(), vm2.EmptyStore)
+	err = m.ResolveResources(context.Background(), vm.EmptyStore)
 	if err != nil {
 		panic(err)
 	}

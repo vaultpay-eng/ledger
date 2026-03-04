@@ -1,33 +1,61 @@
 package v2
 
 import (
-	"encoding/json"
+	"errors"
 	"net/http"
+	"strings"
 
-	"github.com/formancehq/go-libs/contextutil"
+	"github.com/formancehq/go-libs/v4/api"
 
-	sharedapi "github.com/formancehq/go-libs/api"
-	"github.com/formancehq/ledger/internal/api/backend"
+	"github.com/formancehq/ledger/internal/api/bulking"
+	"github.com/formancehq/ledger/internal/api/common"
 )
 
-func bulkHandler(w http.ResponseWriter, r *http.Request) {
-	b := Bulk{}
-	if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
-		sharedapi.BadRequest(w, ErrValidation, err)
-		return
-	}
+func bulkHandler(bulkerFactory bulking.BulkerFactory, bulkHandlerFactories map[string]bulking.HandlerFactory) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
 
-	w.Header().Set("Content-Type", "application/json")
+		contentType := r.Header.Get("Content-Type")
+		if contentType == "" {
+			contentType = "application/json"
+		}
+		if strings.Index(contentType, ";") > 0 {
+			contentType = strings.Split(contentType, ";")[0]
+		}
 
-	ctx, _ := contextutil.Detached(r.Context())
-	ret, errorsInBulk, err := ProcessBulk(ctx, backend.LedgerFromContext(r.Context()), b, sharedapi.QueryParamBool(r, "continueOnFailure"))
-	if err != nil || errorsInBulk {
-		w.WriteHeader(http.StatusBadRequest)
-	}
+		bulkHandlerFactory, ok := bulkHandlerFactories[contentType]
+		if !ok {
+			api.BadRequest(w, common.ErrValidation, errors.New("unsupported content type: "+contentType))
+			return
+		}
 
-	if err := json.NewEncoder(w).Encode(sharedapi.BaseResponse[[]Result]{
-		Data: &ret,
-	}); err != nil {
-		panic(err)
+		bulkHandler := bulkHandlerFactory.CreateBulkHandler()
+		send, receive, ok := bulkHandler.GetChannels(w, r)
+		if !ok {
+			return
+		}
+
+		schemaVersion := r.URL.Query().Get("schemaVersion")
+
+		l := common.LedgerFromContext(r.Context())
+
+		err := bulkerFactory.CreateBulker(l).Run(r.Context(), send, receive,
+			bulking.BulkingOptions{
+				ContinueOnFailure: api.QueryParamBool(r, "continueOnFailure"),
+				Atomic:            api.QueryParamBool(r, "atomic"),
+				Parallel:          api.QueryParamBool(r, "parallel"),
+				SchemaVersion:     schemaVersion,
+			},
+		)
+		if err != nil {
+			switch {
+			case errors.Is(err, bulking.ErrAtomicParallelConflict):
+				api.WriteErrorResponse(w, http.StatusPreconditionFailed, common.ErrValidation, err)
+			default:
+				common.InternalServerError(w, r, err)
+			}
+			return
+		}
+
+		bulkHandler.Terminate(w, r)
 	}
 }

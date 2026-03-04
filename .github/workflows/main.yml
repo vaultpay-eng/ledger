@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - releases/*
+      - release/*
   pull_request:
     types: [ assigned, opened, synchronize, reopened, labeled ]
 
@@ -25,73 +25,85 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   Dirty:
-    runs-on: "ubuntu-latest"
+    runs-on: "shipfox-4vcpu-ubuntu-2404"
+    env:
+      GOPATH: /tmp/go
+      GOLANGCI_LINT_CACHE: /tmp/golangci-lint
     steps:
-      - uses: 'actions/checkout@v4'
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          filter: tree:0 # treeless clone, faster to clone as history and blobs are only fetched when needed.
       - name: Setup Env
-        uses: ./.github/actions/env
+        uses: ./.github/actions/default
         with:
           token: ${{ secrets.NUMARY_GITHUB_TOKEN }}
       - run: >
-          earthly
-          --allow-privileged
-          --secret SPEAKEASY_API_KEY=$SPEAKEASY_API_KEY
-          ${{ contains(github.event.pull_request.labels.*.name, 'no-cache') && '--no-cache' || '' }}
-          +pre-commit
+          nix develop --impure --command just pre-commit
         env:
           SPEAKEASY_API_KEY: ${{ secrets.SPEAKEASY_API_KEY }}
       - name: Get changed files
         id: changed-files
         shell: bash
         run: |
-          hasChanged=$(git status --porcelain) 
+          hasChanged=$(git status --porcelain)
           if (( $(echo ${#hasChanged}) != 0 )); then
             git status
             echo "There are changes in the repository"
+            git diff
             exit 1
           fi
 
   Tests:
-    runs-on: "ubuntu-latest"
-    needs:
-      - Dirty
+    runs-on: "shipfox-8vcpu-ubuntu-2404"
+    env:
+      GOPATH: /tmp/go
     steps:
-      - uses: 'actions/checkout@v4'
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          filter: tree:0 # treeless clone, faster to clone as history and blobs are only fetched when needed.
       - name: Setup Env
-        uses: ./.github/actions/env
+        uses: ./.github/actions/default
         with:
           token: ${{ secrets.NUMARY_GITHUB_TOKEN }}
       - run: >
-          earthly
-          --no-output
-          --allow-privileged
-          --secret SPEAKEASY_API_KEY=$SPEAKEASY_API_KEY
-          ${{ contains(github.event.pull_request.labels.*.name, 'no-cache') && '--no-cache' || '' }}
-          +tests
+          nix develop --impure --command just tests
         env:
           SPEAKEASY_API_KEY: ${{ secrets.SPEAKEASY_API_KEY }}
+      - name: Upload coverage reports to Codecov with GitHub Action
+        uses: codecov/codecov-action@v5.4.3
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
   GoReleaser:
-    runs-on: "ubuntu-latest"
+    runs-on: "shipfox-4vcpu-ubuntu-2404"
+    permissions:
+      id-token: write
+      attestations: write
     if: contains(github.event.pull_request.labels.*.name, 'build-images') || github.ref == 'refs/heads/main' || github.event_name == 'merge_group'
-    needs:
-      - Dirty
     steps:
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
       - uses: earthly/actions-setup@v1
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           version: "latest"
-      - uses: 'actions/checkout@v4'
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          filter: tree:0 # treeless clone, faster to clone as history and blobs are only fetched when needed.
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
       - name: Setup Env
-        uses: ./.github/actions/env
+        uses: ./.github/actions/default
         with:
           token: ${{ secrets.NUMARY_GITHUB_TOKEN }}
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -99,50 +111,85 @@ jobs:
           username: "NumaryBot"
           password: ${{ secrets.NUMARY_GITHUB_TOKEN }}
       - run: >
-          earthly
-          --no-output
-          --allow-privileged
-          --secret SPEAKEASY_API_KEY=$SPEAKEASY_API_KEY
-          --secret GITHUB_TOKEN=$GITHUB_TOKEN
-          --secret FURY_TOKEN=$FURY_TOKEN
-          --secret GORELEASER_KEY=$GORELEASER_KEY
-          ${{ contains(github.event.pull_request.labels.*.name, 'no-cache') && '--no-cache' || '' }}
-          +release --mode=ci
+          nix develop --impure --command just release-ci
         env:
           GITHUB_TOKEN: ${{ secrets.NUMARY_GITHUB_TOKEN }}
           SPEAKEASY_API_KEY: ${{ secrets.SPEAKEASY_API_KEY }}
           FURY_TOKEN: ${{ secrets.FURY_TOKEN }}
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
 
+      - uses: actions/upload-artifact@v4
+        with:
+          name: goreleaser-metadata
+          path: |
+            dist/*.json
+            dist/ledger_checksums.txt
+          retention-days: 7
+          compression-level: 0
+
+      # TODO(@sylr): Move this to the Release workflow when proven working.
+      # Generate attestations for the goreleaser output archives
+      - uses: actions/attest-build-provenance@v2
+        with:
+          subject-checksums: ./dist/ledger_checksums.txt
+      # Generate attestations for the goreleaser output binaries
+      - uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: ./dist/*/**
+      # Extract image metadata from the artifacts.json file
+      - run: |
+          jq -r '[ .[]|select(.type=="Docker Manifest") | .extra.Digest         ] | to_entries | .[] | ( "digest"+ (.key | tostring) + "=" + .value )' < dist/artifacts.json >> "$GITHUB_OUTPUT"
+          jq -r '[ .[]|select(.type=="Docker Manifest") | .name | split(":")[0] ] | to_entries | .[] | ( "name"+ (.key | tostring) + "=" + .value )'   < dist/artifacts.json >> "$GITHUB_OUTPUT"
+        id: image_metadata
+      # Generate attestations for docker images
+      - uses: actions/attest-build-provenance@v2
+        with:
+          subject-digest: ${{ steps.image_metadata.outputs.digest0 }}
+          subject-name: ${{ steps.image_metadata.outputs.name0 }}
+          push-to-registry: true
+      - uses: actions/attest-build-provenance@v2
+        with:
+          subject-digest: ${{ steps.image_metadata.outputs.digest1 }}
+          subject-name: ${{ steps.image_metadata.outputs.name1 }}
+          push-to-registry: true
+
   Deploy:
-    runs-on: "ubuntu-latest"
+    runs-on: ubuntu-24.04
     if: github.ref == 'refs/heads/main'
     environment: staging
+    permissions:
+      id-token: write
     needs:
       - GoReleaser
       - Tests
     steps:
+      - name: Tailscale
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.TS_OIDC_OAUTH_CLIENT_ID }}
+          audience: ${{ secrets.TS_OIDC_AUDIENCE }}
+          tags: ${{ vars.TS_TAGS }}
+          version: ${{ vars.TS_VERSION }}
+          args: ${{ vars.TS_ARGS }}
+          retry: ${{ vars.TS_RETRY }}
+          timeout: ${{ vars.TS_TIMEOUT }}
+          ping: ${{ vars.TS_PING }}
       - uses: earthly/actions-setup@v1
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           version: "latest"
-      - uses: 'actions/checkout@v4'
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Tailscale
-        uses: tailscale/github-action@v2
-        with:
-          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
-          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
-          tags: tag:ci
+          filter: tree:0 # treeless clone, faster to clone as history and blobs are only fetched when needed.
       - name: "Deploy in staging"
         env:
           TAG: ${{ github.sha }}
           COMPONENT: ledger
           ARGOCD_REGION_AUTH_TOKEN: ${{ secrets.ARGOCD_REGION_AUTH_TOKEN }}
         run: >
-          earthly  
-          --no-output 
+          earthly
+          --no-output
           --secret AUTH_TOKEN=$ARGOCD_REGION_AUTH_TOKEN
           +deploy-staging
           --TAG=$TAG

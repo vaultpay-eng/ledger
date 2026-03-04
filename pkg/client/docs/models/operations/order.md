@@ -1,8 +1,11 @@
 # Order
 
+The sort order
+
 
 ## Values
 
-| Name             | Value            |
-| ---------------- | ---------------- |
-| `OrderEffective` | effective        |
+| Name        | Value       |
+| ----------- | ----------- |
+| `OrderAsc`  | asc         |
+| `OrderDesc` | desc        |

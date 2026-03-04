@@ -1,9 +1,9 @@
 package ledger
 
 import (
-	"math/big"
+	"fmt"
 
-	"github.com/formancehq/go-libs/metadata"
+	"github.com/formancehq/go-libs/v4/metadata"
 )
 
 const (
@@ -18,7 +18,7 @@ func SpecMetadata(name string) string {
 	return formanceNamespace + name
 }
 
-func MarkReverts(m metadata.Metadata, txID *big.Int) metadata.Metadata {
+func MarkReverts(m metadata.Metadata, txID uint64) metadata.Metadata {
 	return m.Merge(RevertMetadata(txID))
 }
 
@@ -32,6 +32,6 @@ func ComputeMetadata(key, value string) metadata.Metadata {
 	}
 }
 
-func RevertMetadata(tx *big.Int) metadata.Metadata {
-	return ComputeMetadata(RevertMetadataSpecKey(), tx.String())
+func RevertMetadata(txID uint64) metadata.Metadata {
+	return ComputeMetadata(RevertMetadataSpecKey(), fmt.Sprint(txID))
 }

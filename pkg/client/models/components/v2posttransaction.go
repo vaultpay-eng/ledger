@@ -3,23 +3,31 @@
 package components
 
 import (
-	"github.com/formancehq/stack/ledger/client/internal/utils"
+	"github.com/formancehq/ledger/pkg/client/internal/utils"
 	"time"
 )
 
 type V2PostTransactionScript struct {
-	Plain string         `json:"plain"`
-	Vars  map[string]any `json:"vars,omitempty"`
+	Template *string           `json:"template,omitempty"`
+	Plain    *string           `json:"plain,omitempty"`
+	Vars     map[string]string `json:"vars,omitempty"`
 }
 
-func (o *V2PostTransactionScript) GetPlain() string {
+func (o *V2PostTransactionScript) GetTemplate() *string {
 	if o == nil {
-		return ""
+		return nil
+	}
+	return o.Template
+}
+
+func (o *V2PostTransactionScript) GetPlain() *string {
+	if o == nil {
+		return nil
 	}
 	return o.Plain
 }
 
-func (o *V2PostTransactionScript) GetVars() map[string]any {
+func (o *V2PostTransactionScript) GetVars() map[string]string {
 	if o == nil {
 		return nil
 	}
@@ -30,8 +38,12 @@ type V2PostTransaction struct {
 	Timestamp *time.Time               `json:"timestamp,omitempty"`
 	Postings  []V2Posting              `json:"postings,omitempty"`
 	Script    *V2PostTransactionScript `json:"script,omitempty"`
-	Reference *string                  `json:"reference,omitempty"`
-	Metadata  map[string]string        `json:"metadata"`
+	// The numscript runtime used to execute the script. Uses "machine" by default, unless the "--experimental-numscript-interpreter" feature flag is passed.
+	Runtime         *Runtime                     `json:"runtime,omitempty"`
+	Reference       *string                      `json:"reference,omitempty"`
+	Metadata        map[string]string            `json:"metadata"`
+	AccountMetadata map[string]map[string]string `json:"accountMetadata,omitempty"`
+	Force           *bool                        `json:"force,omitempty"`
 }
 
 func (v V2PostTransaction) MarshalJSON() ([]byte, error) {
@@ -66,6 +78,13 @@ func (o *V2PostTransaction) GetScript() *V2PostTransactionScript {
 	return o.Script
 }
 
+func (o *V2PostTransaction) GetRuntime() *Runtime {
+	if o == nil {
+		return nil
+	}
+	return o.Runtime
+}
+
 func (o *V2PostTransaction) GetReference() *string {
 	if o == nil {
 		return nil
@@ -78,4 +97,18 @@ func (o *V2PostTransaction) GetMetadata() map[string]string {
 		return map[string]string{}
 	}
 	return o.Metadata
+}
+
+func (o *V2PostTransaction) GetAccountMetadata() map[string]map[string]string {
+	if o == nil {
+		return nil
+	}
+	return o.AccountMetadata
+}
+
+func (o *V2PostTransaction) GetForce() *bool {
+	if o == nil {
+		return nil
+	}
+	return o.Force
 }

@@ -3,7 +3,7 @@
 package operations
 
 import (
-	"github.com/formancehq/stack/ledger/client/models/components"
+	"github.com/formancehq/ledger/pkg/client/models/components"
 )
 
 type V2DeleteAccountMetadataRequest struct {
@@ -13,6 +13,8 @@ type V2DeleteAccountMetadataRequest struct {
 	Address string `pathParam:"style=simple,explode=false,name=address"`
 	// The key to remove.
 	Key string `pathParam:"style=simple,explode=false,name=key"`
+	// Use an idempotency key
+	IdempotencyKey *string `header:"style=simple,explode=false,name=Idempotency-Key"`
 }
 
 func (o *V2DeleteAccountMetadataRequest) GetLedger() string {
@@ -36,8 +38,16 @@ func (o *V2DeleteAccountMetadataRequest) GetKey() string {
 	return o.Key
 }
 
+func (o *V2DeleteAccountMetadataRequest) GetIdempotencyKey() *string {
+	if o == nil {
+		return nil
+	}
+	return o.IdempotencyKey
+}
+
 type V2DeleteAccountMetadataResponse struct {
 	HTTPMeta components.HTTPMetadata `json:"-"`
+	Headers  map[string][]string
 }
 
 func (o *V2DeleteAccountMetadataResponse) GetHTTPMeta() components.HTTPMetadata {
@@ -45,4 +55,11 @@ func (o *V2DeleteAccountMetadataResponse) GetHTTPMeta() components.HTTPMetadata 
 		return components.HTTPMetadata{}
 	}
 	return o.HTTPMeta
+}
+
+func (o *V2DeleteAccountMetadataResponse) GetHeaders() map[string][]string {
+	if o == nil {
+		return map[string][]string{}
+	}
+	return o.Headers
 }

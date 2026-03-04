@@ -3,8 +3,8 @@
 package operations
 
 import (
-	"github.com/formancehq/stack/ledger/client/internal/utils"
-	"github.com/formancehq/stack/ledger/client/models/components"
+	"github.com/formancehq/ledger/pkg/client/internal/utils"
+	"github.com/formancehq/ledger/pkg/client/models/components"
 	"math/big"
 )
 
@@ -51,6 +51,7 @@ func (o *AddMetadataOnTransactionRequest) GetRequestBody() map[string]any {
 
 type AddMetadataOnTransactionResponse struct {
 	HTTPMeta components.HTTPMetadata `json:"-"`
+	Headers  map[string][]string
 }
 
 func (o *AddMetadataOnTransactionResponse) GetHTTPMeta() components.HTTPMetadata {
@@ -58,4 +59,11 @@ func (o *AddMetadataOnTransactionResponse) GetHTTPMeta() components.HTTPMetadata
 		return components.HTTPMetadata{}
 	}
 	return o.HTTPMeta
+}
+
+func (o *AddMetadataOnTransactionResponse) GetHeaders() map[string][]string {
+	if o == nil {
+		return map[string][]string{}
+	}
+	return o.Headers
 }

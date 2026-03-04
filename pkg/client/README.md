@@ -26,22 +26,29 @@ It has been generated successfully based on your OpenAPI spec. However, it is no
 
 <!-- Start Table of Contents [toc] -->
 ## Table of Contents
+<!-- $toc-max-depth=2 -->
+* [github.com/formancehq/stack/ledger/client](#githubcomformancehqstackledgerclient)
+  * [🏗 **Welcome to your new SDK!** 🏗](#welcome-to-your-new-sdk)
+  * [SDK Installation](#sdk-installation)
+  * [SDK Example Usage](#sdk-example-usage)
+  * [Available Resources and Operations](#available-resources-and-operations)
+  * [Retries](#retries)
+  * [Error Handling](#error-handling)
+  * [Server Selection](#server-selection)
+  * [Custom HTTP Client](#custom-http-client)
+  * [Authentication](#authentication)
+* [Development](#development)
+  * [Maturity](#maturity)
+  * [Contributions](#contributions)
 
-* [SDK Installation](#sdk-installation)
-* [SDK Example Usage](#sdk-example-usage)
-* [Available Resources and Operations](#available-resources-and-operations)
-* [Retries](#retries)
-* [Error Handling](#error-handling)
-* [Server Selection](#server-selection)
-* [Custom HTTP Client](#custom-http-client)
-* [Special Types](#special-types)
 <!-- End Table of Contents [toc] -->
 
 <!-- Start SDK Installation [installation] -->
 ## SDK Installation
 
+To add the SDK as a dependency to your project:
 ```bash
-go get github.com/formancehq/stack/ledger/client
+go get github.com/formancehq/ledger/pkg/client
 ```
 <!-- End SDK Installation [installation] -->
 
@@ -55,25 +62,27 @@ package main
 
 import (
 	"context"
-	"github.com/formancehq/stack/ledger/client"
-	"github.com/formancehq/stack/ledger/client/models/components"
+	"github.com/formancehq/ledger/pkg/client"
+	"github.com/formancehq/ledger/pkg/client/models/components"
 	"log"
+	"os"
 )
 
 func main() {
+	ctx := context.Background()
+
 	s := client.New(
 		client.WithSecurity(components.Security{
-			ClientID:     "",
-			ClientSecret: "",
+			ClientID:     client.String(os.Getenv("FORMANCE_CLIENT_ID")),
+			ClientSecret: client.String(os.Getenv("FORMANCE_CLIENT_SECRET")),
 		}),
 	)
 
-	ctx := context.Background()
-	res, err := s.Ledger.V1.GetInfo(ctx)
+	res, err := s.Ledger.GetInfo(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
-	if res.ConfigInfoResponse != nil {
+	if res.V2ConfigInfoResponse != nil {
 		// handle response
 	}
 }
@@ -84,7 +93,16 @@ func main() {
 <!-- Start Available Resources and Operations [operations] -->
 ## Available Resources and Operations
 
-### [Ledger.V1](docs/sdks/v1/README.md)
+<details open>
+<summary>Available methods</summary>
+
+
+### [Ledger](docs/sdks/ledger/README.md)
+
+* [GetInfo](docs/sdks/ledger/README.md#getinfo) - Show server information
+* [GetMetrics](docs/sdks/ledger/README.md#getmetrics) - Read in memory metrics
+
+#### [Ledger.V1](docs/sdks/v1/README.md)
 
 * [GetInfo](docs/sdks/v1/README.md#getinfo) - Show server information
 * [GetLedgerInfo](docs/sdks/v1/README.md#getledgerinfo) - Get information about a ledger
@@ -107,12 +125,14 @@ func main() {
 * [GetBalancesAggregated](docs/sdks/v1/README.md#getbalancesaggregated) - Get the aggregated balances from selected accounts
 * [ListLogs](docs/sdks/v1/README.md#listlogs) - List the logs from a ledger
 
-### [Ledger.V2](docs/sdks/v2/README.md)
+#### [Ledger.V2](docs/sdks/v2/README.md)
 
-* [GetInfo](docs/sdks/v2/README.md#getinfo) - Show server information
 * [ListLedgers](docs/sdks/v2/README.md#listledgers) - List ledgers
 * [GetLedger](docs/sdks/v2/README.md#getledger) - Get a ledger
 * [CreateLedger](docs/sdks/v2/README.md#createledger) - Create a ledger
+* [InsertSchema](docs/sdks/v2/README.md#insertschema) - Insert a schema for a ledger
+* [GetSchema](docs/sdks/v2/README.md#getschema) - Get a schema for a ledger by version
+* [ListSchemas](docs/sdks/v2/README.md#listschemas) - List all schemas for a ledger
 * [UpdateLedgerMetadata](docs/sdks/v2/README.md#updateledgermetadata) - Update ledger metadata
 * [DeleteLedgerMetadata](docs/sdks/v2/README.md#deleteledgermetadata) - Delete ledger metadata by key
 * [GetLedgerInfo](docs/sdks/v2/README.md#getledgerinfo) - Get information about a ledger
@@ -135,6 +155,23 @@ func main() {
 * [ListLogs](docs/sdks/v2/README.md#listlogs) - List the logs from a ledger
 * [ImportLogs](docs/sdks/v2/README.md#importlogs)
 * [ExportLogs](docs/sdks/v2/README.md#exportlogs) - Export logs
+* [RunQuery](docs/sdks/v2/README.md#runquery) - Run a query template
+* [ListExporters](docs/sdks/v2/README.md#listexporters) - List exporters
+* [CreateExporter](docs/sdks/v2/README.md#createexporter) - Create exporter
+* [GetExporterState](docs/sdks/v2/README.md#getexporterstate) - Get exporter state
+* [UpdateExporter](docs/sdks/v2/README.md#updateexporter) - Update exporter
+* [DeleteExporter](docs/sdks/v2/README.md#deleteexporter) - Delete exporter
+* [DeleteBucket](docs/sdks/v2/README.md#deletebucket) - Delete bucket
+* [RestoreBucket](docs/sdks/v2/README.md#restorebucket) - Restore bucket
+* [ListPipelines](docs/sdks/v2/README.md#listpipelines) - List pipelines
+* [CreatePipeline](docs/sdks/v2/README.md#createpipeline) - Create pipeline
+* [GetPipelineState](docs/sdks/v2/README.md#getpipelinestate) - Get pipeline state
+* [DeletePipeline](docs/sdks/v2/README.md#deletepipeline) - Delete pipeline
+* [ResetPipeline](docs/sdks/v2/README.md#resetpipeline) - Reset pipeline
+* [StartPipeline](docs/sdks/v2/README.md#startpipeline) - Start pipeline
+* [StopPipeline](docs/sdks/v2/README.md#stoppipeline) - Stop pipeline
+
+</details>
 <!-- End Available Resources and Operations [operations] -->
 
 <!-- Start Retries [retries] -->
@@ -148,23 +185,25 @@ package main
 
 import (
 	"context"
-	"github.com/formancehq/stack/ledger/client"
-	"github.com/formancehq/stack/ledger/client/models/components"
-	"github.com/formancehq/stack/ledger/client/retry"
+	"github.com/formancehq/ledger/pkg/client"
+	"github.com/formancehq/ledger/pkg/client/models/components"
+	"github.com/formancehq/ledger/pkg/client/retry"
 	"log"
 	"models/operations"
+	"os"
 )
 
 func main() {
+	ctx := context.Background()
+
 	s := client.New(
 		client.WithSecurity(components.Security{
-			ClientID:     "",
-			ClientSecret: "",
+			ClientID:     client.String(os.Getenv("FORMANCE_CLIENT_ID")),
+			ClientSecret: client.String(os.Getenv("FORMANCE_CLIENT_SECRET")),
 		}),
 	)
 
-	ctx := context.Background()
-	res, err := s.Ledger.V1.GetInfo(ctx, operations.WithRetries(
+	res, err := s.Ledger.GetInfo(ctx, operations.WithRetries(
 		retry.Config{
 			Strategy: "backoff",
 			Backoff: &retry.BackoffStrategy{
@@ -178,7 +217,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	if res.ConfigInfoResponse != nil {
+	if res.V2ConfigInfoResponse != nil {
 		// handle response
 	}
 }
@@ -191,13 +230,16 @@ package main
 
 import (
 	"context"
-	"github.com/formancehq/stack/ledger/client"
-	"github.com/formancehq/stack/ledger/client/models/components"
-	"github.com/formancehq/stack/ledger/client/retry"
+	"github.com/formancehq/ledger/pkg/client"
+	"github.com/formancehq/ledger/pkg/client/models/components"
+	"github.com/formancehq/ledger/pkg/client/retry"
 	"log"
+	"os"
 )
 
 func main() {
+	ctx := context.Background()
+
 	s := client.New(
 		client.WithRetryConfig(
 			retry.Config{
@@ -211,17 +253,16 @@ func main() {
 				RetryConnectionErrors: false,
 			}),
 		client.WithSecurity(components.Security{
-			ClientID:     "",
-			ClientSecret: "",
+			ClientID:     client.String(os.Getenv("FORMANCE_CLIENT_ID")),
+			ClientSecret: client.String(os.Getenv("FORMANCE_CLIENT_SECRET")),
 		}),
 	)
 
-	ctx := context.Background()
-	res, err := s.Ledger.V1.GetInfo(ctx)
+	res, err := s.Ledger.GetInfo(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
-	if res.ConfigInfoResponse != nil {
+	if res.V2ConfigInfoResponse != nil {
 		// handle response
 	}
 }
@@ -232,12 +273,16 @@ func main() {
 <!-- Start Error Handling [errors] -->
 ## Error Handling
 
-Handling errors in this SDK should largely match your expectations.  All operations return a response object or an error, they will never return both.  When specified by the OpenAPI spec document, the SDK will return the appropriate subclass.
+Handling errors in this SDK should largely match your expectations. All operations return a response object or an error, they will never return both.
 
-| Error Object            | Status Code             | Content Type            |
-| ----------------------- | ----------------------- | ----------------------- |
-| sdkerrors.ErrorResponse | default                 | application/json        |
-| sdkerrors.SDKError      | 4xx-5xx                 | */*                     |
+By Default, an API error will return `sdkerrors.SDKError`. When custom error responses are specified for an operation, the SDK may also return their associated error. You can refer to respective *Errors* tables in SDK docs for more details on possible error types for each operation.
+
+For example, the `GetInfo` function may return the following errors:
+
+| Error Type                | Status Code | Content Type     |
+| ------------------------- | ----------- | ---------------- |
+| sdkerrors.V2ErrorResponse | default     | application/json |
+| sdkerrors.SDKError        | 4XX, 5XX    | \*/\*            |
 
 ### Example
 
@@ -247,25 +292,27 @@ package main
 import (
 	"context"
 	"errors"
-	"github.com/formancehq/stack/ledger/client"
-	"github.com/formancehq/stack/ledger/client/models/components"
-	"github.com/formancehq/stack/ledger/client/models/sdkerrors"
+	"github.com/formancehq/ledger/pkg/client"
+	"github.com/formancehq/ledger/pkg/client/models/components"
+	"github.com/formancehq/ledger/pkg/client/models/sdkerrors"
 	"log"
+	"os"
 )
 
 func main() {
+	ctx := context.Background()
+
 	s := client.New(
 		client.WithSecurity(components.Security{
-			ClientID:     "",
-			ClientSecret: "",
+			ClientID:     client.String(os.Getenv("FORMANCE_CLIENT_ID")),
+			ClientSecret: client.String(os.Getenv("FORMANCE_CLIENT_SECRET")),
 		}),
 	)
 
-	ctx := context.Background()
-	res, err := s.Ledger.V1.GetInfo(ctx)
+	res, err := s.Ledger.GetInfo(ctx)
 	if err != nil {
 
-		var e *sdkerrors.ErrorResponse
+		var e *sdkerrors.V2ErrorResponse
 		if errors.As(err, &e) {
 			// handle error
 			log.Fatal(e.Error())
@@ -285,76 +332,36 @@ func main() {
 <!-- Start Server Selection [server] -->
 ## Server Selection
 
-### Select Server by Index
-
-You can override the default server globally using the `WithServerIndex` option when initializing the SDK client instance. The selected server will then be used as the default on the operations that use it. This table lists the indexes associated with the available servers:
-
-| # | Server | Variables |
-| - | ------ | --------- |
-| 0 | `http://localhost:8080/` | None |
-
-#### Example
-
-```go
-package main
-
-import (
-	"context"
-	"github.com/formancehq/stack/ledger/client"
-	"github.com/formancehq/stack/ledger/client/models/components"
-	"log"
-)
-
-func main() {
-	s := client.New(
-		client.WithServerIndex(0),
-		client.WithSecurity(components.Security{
-			ClientID:     "",
-			ClientSecret: "",
-		}),
-	)
-
-	ctx := context.Background()
-	res, err := s.Ledger.V1.GetInfo(ctx)
-	if err != nil {
-		log.Fatal(err)
-	}
-	if res.ConfigInfoResponse != nil {
-		// handle response
-	}
-}
-
-```
-
-
 ### Override Server URL Per-Client
 
-The default server can also be overridden globally using the `WithServerURL` option when initializing the SDK client instance. For example:
+The default server can be overridden globally using the `WithServerURL(serverURL string)` option when initializing the SDK client instance. For example:
 ```go
 package main
 
 import (
 	"context"
-	"github.com/formancehq/stack/ledger/client"
-	"github.com/formancehq/stack/ledger/client/models/components"
+	"github.com/formancehq/ledger/pkg/client"
+	"github.com/formancehq/ledger/pkg/client/models/components"
 	"log"
+	"os"
 )
 
 func main() {
+	ctx := context.Background()
+
 	s := client.New(
 		client.WithServerURL("http://localhost:8080/"),
 		client.WithSecurity(components.Security{
-			ClientID:     "",
-			ClientSecret: "",
+			ClientID:     client.String(os.Getenv("FORMANCE_CLIENT_ID")),
+			ClientSecret: client.String(os.Getenv("FORMANCE_CLIENT_SECRET")),
 		}),
 	)
 
-	ctx := context.Background()
-	res, err := s.Ledger.V1.GetInfo(ctx)
+	res, err := s.Ledger.GetInfo(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
-	if res.ConfigInfoResponse != nil {
+	if res.V2ConfigInfoResponse != nil {
 		// handle response
 	}
 }
@@ -391,49 +398,44 @@ var (
 This can be a convenient way to configure timeouts, cookies, proxies, custom headers, and other low-level configuration.
 <!-- End Custom HTTP Client [http-client] -->
 
-<!-- Start Special Types [types] -->
-## Special Types
-
-
-<!-- End Special Types [types] -->
-
 <!-- Start Authentication [security] -->
 ## Authentication
 
 ### Per-Client Security Schemes
 
-This SDK supports the following security schemes globally:
+This SDK supports the following security scheme globally:
 
-| Name           | Type           | Scheme         |
-| -------------- | -------------- | -------------- |
-| `ClientID`     | oauth2         | OAuth2 token   |
-| `ClientSecret` | oauth2         | OAuth2 token   |
+| Name                          | Type   | Scheme                         | Environment Variable                                                       |
+| ----------------------------- | ------ | ------------------------------ | -------------------------------------------------------------------------- |
+| `ClientID`<br/>`ClientSecret` | oauth2 | OAuth2 Client Credentials Flow | `FORMANCE_CLIENT_ID`<br/>`FORMANCE_CLIENT_SECRET`<br/>`FORMANCE_TOKEN_URL` |
 
-You can set the security parameters through the `WithSecurity` option when initializing the SDK client instance. The selected scheme will be used by default to authenticate with the API for all operations that support it. For example:
+You can configure it using the `WithSecurity` option when initializing the SDK client instance. For example:
 ```go
 package main
 
 import (
 	"context"
-	"github.com/formancehq/stack/ledger/client"
-	"github.com/formancehq/stack/ledger/client/models/components"
+	"github.com/formancehq/ledger/pkg/client"
+	"github.com/formancehq/ledger/pkg/client/models/components"
 	"log"
+	"os"
 )
 
 func main() {
+	ctx := context.Background()
+
 	s := client.New(
 		client.WithSecurity(components.Security{
-			ClientID:     "",
-			ClientSecret: "",
+			ClientID:     client.String(os.Getenv("FORMANCE_CLIENT_ID")),
+			ClientSecret: client.String(os.Getenv("FORMANCE_CLIENT_SECRET")),
 		}),
 	)
 
-	ctx := context.Background()
-	res, err := s.Ledger.V1.GetInfo(ctx)
+	res, err := s.Ledger.GetInfo(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
-	if res.ConfigInfoResponse != nil {
+	if res.V2ConfigInfoResponse != nil {
 		// handle response
 	}
 }

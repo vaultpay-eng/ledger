@@ -1,39 +1,39 @@
 package v2
 
 import (
+	"errors"
 	"net/http"
 
-	sharedapi "github.com/formancehq/go-libs/api"
-	"github.com/formancehq/ledger/internal/api/backend"
-	"github.com/formancehq/ledger/internal/storage/ledgerstore"
+	"github.com/formancehq/go-libs/v4/api"
+
+	ledger "github.com/formancehq/ledger/internal"
+	"github.com/formancehq/ledger/internal/api/common"
+	storagecommon "github.com/formancehq/ledger/internal/storage/common"
+	ledgerstore "github.com/formancehq/ledger/internal/storage/ledger"
 )
 
-func getBalancesAggregated(w http.ResponseWriter, r *http.Request) {
+func readBalancesAggregated(w http.ResponseWriter, r *http.Request) {
 
-	pitFilter, err := getPITFilter(r)
+	rq, err := getResourceQuery[ledger.GetAggregatedVolumesOptions](r, func(options *ledger.GetAggregatedVolumesOptions) error {
+		options.UseInsertionDate = api.QueryParamBool(r, "use_insertion_date") || api.QueryParamBool(r, "useInsertionDate")
+
+		return nil
+	})
 	if err != nil {
-		sharedapi.BadRequest(w, ErrValidation, err)
+		api.BadRequest(w, common.ErrValidation, err)
 		return
 	}
 
-	queryBuilder, err := getQueryBuilder(r)
-	if err != nil {
-		sharedapi.BadRequest(w, ErrValidation, err)
-		return
-	}
-
-	balances, err := backend.LedgerFromContext(r.Context()).
-		GetAggregatedBalances(r.Context(), ledgerstore.NewGetAggregatedBalancesQuery(
-			*pitFilter, queryBuilder, sharedapi.QueryParamBool(r, "use_insertion_date") || sharedapi.QueryParamBool(r, "useInsertionDate")))
+	balances, err := common.LedgerFromContext(r.Context()).GetAggregatedBalances(r.Context(), *rq)
 	if err != nil {
 		switch {
-		case ledgerstore.IsErrInvalidQuery(err):
-			sharedapi.BadRequest(w, ErrValidation, err)
+		case errors.Is(err, storagecommon.ErrInvalidQuery{}) || errors.Is(err, ledgerstore.ErrMissingFeature{}):
+			api.BadRequest(w, common.ErrValidation, err)
 		default:
-			sharedapi.InternalServerError(w, r, err)
+			common.HandleCommonErrors(w, r, err)
 		}
 		return
 	}
 
-	sharedapi.Ok(w, balances)
+	api.Ok(w, renderBalancesByAssets(r, balances))
 }

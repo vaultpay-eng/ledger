@@ -3,15 +3,18 @@
 package components
 
 import (
-	"github.com/formancehq/stack/ledger/client/internal/utils"
+	"github.com/formancehq/ledger/pkg/client/internal/utils"
 	"time"
 )
 
 type V2Ledger struct {
-	Name     string            `json:"name"`
-	AddedAt  time.Time         `json:"addedAt"`
-	Bucket   string            `json:"bucket"`
-	Metadata map[string]string `json:"metadata,omitempty"`
+	Name      string            `json:"name"`
+	AddedAt   time.Time         `json:"addedAt"`
+	Bucket    string            `json:"bucket"`
+	DeletedAt *time.Time        `json:"deletedAt,omitempty"`
+	Metadata  map[string]string `json:"metadata,omitempty"`
+	Features  map[string]string `json:"features,omitempty"`
+	ID        *int64            `json:"id,omitempty"`
 }
 
 func (v V2Ledger) MarshalJSON() ([]byte, error) {
@@ -46,9 +49,30 @@ func (o *V2Ledger) GetBucket() string {
 	return o.Bucket
 }
 
+func (o *V2Ledger) GetDeletedAt() *time.Time {
+	if o == nil {
+		return nil
+	}
+	return o.DeletedAt
+}
+
 func (o *V2Ledger) GetMetadata() map[string]string {
 	if o == nil {
 		return nil
 	}
 	return o.Metadata
+}
+
+func (o *V2Ledger) GetFeatures() map[string]string {
+	if o == nil {
+		return nil
+	}
+	return o.Features
+}
+
+func (o *V2Ledger) GetID() *int64 {
+	if o == nil {
+		return nil
+	}
+	return o.ID
 }

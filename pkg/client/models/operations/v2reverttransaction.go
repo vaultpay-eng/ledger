@@ -3,8 +3,8 @@
 package operations
 
 import (
-	"github.com/formancehq/stack/ledger/client/internal/utils"
-	"github.com/formancehq/stack/ledger/client/models/components"
+	"github.com/formancehq/ledger/pkg/client/internal/utils"
+	"github.com/formancehq/ledger/pkg/client/models/components"
 	"math/big"
 )
 
@@ -17,6 +17,13 @@ type V2RevertTransactionRequest struct {
 	Force *bool `queryParam:"style=form,explode=true,name=force"`
 	// Revert transaction at effective date of the original tx
 	AtEffectiveDate *bool `queryParam:"style=form,explode=true,name=atEffectiveDate"`
+	// Set the dryRun mode. dry run mode doesn't add the logs to the database or publish a message to the message broker.
+	DryRun *bool `queryParam:"style=form,explode=true,name=dryRun"`
+	// Schema version to use for validation
+	SchemaVersion *string `queryParam:"style=form,explode=true,name=schemaVersion"`
+	// Use an idempotency key
+	IdempotencyKey             *string                                `header:"style=simple,explode=false,name=Idempotency-Key"`
+	V2RevertTransactionRequest *components.V2RevertTransactionRequest `request:"mediaType=application/json"`
 }
 
 func (v V2RevertTransactionRequest) MarshalJSON() ([]byte, error) {
@@ -58,10 +65,39 @@ func (o *V2RevertTransactionRequest) GetAtEffectiveDate() *bool {
 	return o.AtEffectiveDate
 }
 
+func (o *V2RevertTransactionRequest) GetDryRun() *bool {
+	if o == nil {
+		return nil
+	}
+	return o.DryRun
+}
+
+func (o *V2RevertTransactionRequest) GetSchemaVersion() *string {
+	if o == nil {
+		return nil
+	}
+	return o.SchemaVersion
+}
+
+func (o *V2RevertTransactionRequest) GetIdempotencyKey() *string {
+	if o == nil {
+		return nil
+	}
+	return o.IdempotencyKey
+}
+
+func (o *V2RevertTransactionRequest) GetV2RevertTransactionRequest() *components.V2RevertTransactionRequest {
+	if o == nil {
+		return nil
+	}
+	return o.V2RevertTransactionRequest
+}
+
 type V2RevertTransactionResponse struct {
 	HTTPMeta components.HTTPMetadata `json:"-"`
 	// OK
-	V2RevertTransactionResponse *components.V2RevertTransactionResponse
+	V2CreateTransactionResponse *components.V2CreateTransactionResponse
+	Headers                     map[string][]string
 }
 
 func (o *V2RevertTransactionResponse) GetHTTPMeta() components.HTTPMetadata {
@@ -71,9 +107,16 @@ func (o *V2RevertTransactionResponse) GetHTTPMeta() components.HTTPMetadata {
 	return o.HTTPMeta
 }
 
-func (o *V2RevertTransactionResponse) GetV2RevertTransactionResponse() *components.V2RevertTransactionResponse {
+func (o *V2RevertTransactionResponse) GetV2CreateTransactionResponse() *components.V2CreateTransactionResponse {
 	if o == nil {
 		return nil
 	}
-	return o.V2RevertTransactionResponse
+	return o.V2CreateTransactionResponse
+}
+
+func (o *V2RevertTransactionResponse) GetHeaders() map[string][]string {
+	if o == nil {
+		return map[string][]string{}
+	}
+	return o.Headers
 }

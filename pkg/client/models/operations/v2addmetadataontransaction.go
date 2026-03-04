@@ -3,8 +3,8 @@
 package operations
 
 import (
-	"github.com/formancehq/stack/ledger/client/internal/utils"
-	"github.com/formancehq/stack/ledger/client/models/components"
+	"github.com/formancehq/ledger/pkg/client/internal/utils"
+	"github.com/formancehq/ledger/pkg/client/models/components"
 	"math/big"
 )
 
@@ -17,6 +17,8 @@ type V2AddMetadataOnTransactionRequest struct {
 	DryRun *bool `queryParam:"style=form,explode=true,name=dryRun"`
 	// Use an idempotency key
 	IdempotencyKey *string `header:"style=simple,explode=false,name=Idempotency-Key"`
+	// Schema version to use for validation
+	SchemaVersion *string `queryParam:"style=form,explode=true,name=schemaVersion"`
 	// metadata
 	RequestBody map[string]string `request:"mediaType=application/json"`
 }
@@ -60,15 +62,23 @@ func (o *V2AddMetadataOnTransactionRequest) GetIdempotencyKey() *string {
 	return o.IdempotencyKey
 }
 
-func (o *V2AddMetadataOnTransactionRequest) GetRequestBody() map[string]string {
+func (o *V2AddMetadataOnTransactionRequest) GetSchemaVersion() *string {
 	if o == nil {
 		return nil
+	}
+	return o.SchemaVersion
+}
+
+func (o *V2AddMetadataOnTransactionRequest) GetRequestBody() map[string]string {
+	if o == nil {
+		return map[string]string{}
 	}
 	return o.RequestBody
 }
 
 type V2AddMetadataOnTransactionResponse struct {
 	HTTPMeta components.HTTPMetadata `json:"-"`
+	Headers  map[string][]string
 }
 
 func (o *V2AddMetadataOnTransactionResponse) GetHTTPMeta() components.HTTPMetadata {
@@ -76,4 +86,11 @@ func (o *V2AddMetadataOnTransactionResponse) GetHTTPMeta() components.HTTPMetada
 		return components.HTTPMetadata{}
 	}
 	return o.HTTPMeta
+}
+
+func (o *V2AddMetadataOnTransactionResponse) GetHeaders() map[string][]string {
+	if o == nil {
+		return map[string][]string{}
+	}
+	return o.Headers
 }

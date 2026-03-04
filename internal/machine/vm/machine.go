@@ -11,17 +11,17 @@ package vm
 import (
 	"context"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"math/big"
-	"slices"
 
-	"github.com/formancehq/ledger/internal/machine"
-
-	"github.com/formancehq/go-libs/metadata"
-	ledger "github.com/formancehq/ledger/internal"
-	"github.com/formancehq/ledger/internal/machine/vm/program"
 	"github.com/logrusorgru/aurora"
-	"github.com/pkg/errors"
+
+	"github.com/formancehq/go-libs/v4/metadata"
+
+	ledger "github.com/formancehq/ledger/internal"
+	"github.com/formancehq/ledger/internal/machine"
+	"github.com/formancehq/ledger/internal/machine/vm/program"
 )
 
 type Machine struct {
@@ -286,7 +286,7 @@ func (m *Machine) tick() (bool, error) {
 		}
 		allotment, err := machine.NewAllotment(portions)
 		if err != nil {
-			return true, machine.NewErrInvalidScript(err.Error())
+			return true, machine.NewErrInvalidScript("%s", err)
 		}
 		m.pushValue(*allotment)
 
@@ -295,7 +295,7 @@ func (m *Machine) tick() (bool, error) {
 		account := pop[machine.AccountAddress](m)
 		funding, err := m.withdrawAll(account, overdraft.Asset, overdraft.Amount)
 		if err != nil {
-			return true, machine.NewErrInvalidScript(err.Error())
+			return true, machine.NewErrInvalidScript("%s", err)
 		}
 		m.pushValue(*funding)
 
@@ -304,7 +304,7 @@ func (m *Machine) tick() (bool, error) {
 		account := pop[machine.AccountAddress](m)
 		funding, err := m.withdrawAlways(account, mon)
 		if err != nil {
-			return true, machine.NewErrInvalidScript(err.Error())
+			return true, machine.NewErrInvalidScript("%s", err)
 		}
 		m.pushValue(*funding)
 
@@ -316,7 +316,7 @@ func (m *Machine) tick() (bool, error) {
 		}
 		result, remainder, err := funding.Take(mon.Amount)
 		if err != nil {
-			return true, machine.NewErrInsufficientFund(err.Error())
+			return true, machine.NewErrInsufficientFund("%s", err)
 		}
 		m.pushValue(remainder)
 		m.pushValue(result)
@@ -367,7 +367,7 @@ func (m *Machine) tick() (bool, error) {
 		for i := 0; i < n; i++ {
 			res, err := result.Concat(fundings_rev[n-1-i])
 			if err != nil {
-				return true, machine.NewErrInvalidScript(err.Error())
+				return true, machine.NewErrInvalidScript("%s", err)
 			}
 			result = res
 		}
@@ -434,11 +434,23 @@ func (m *Machine) tick() (bool, error) {
 	case program.OP_SAVE:
 		a := pop[machine.AccountAddress](m)
 		v := m.popValue()
+		// note: if the balance is not present, it means it's never used as a source so we don't need to save anything
 		switch v := v.(type) {
 		case machine.Asset:
-			m.Balances[a][v] = machine.Zero
+			if balances, ok := m.Balances[a]; ok {
+				if balance, ok := balances[v]; ok {
+					if balance.ToBigInt().Sign() > 0 {
+						balances[v] = machine.Zero
+					}
+				}
+			}
+
 		case machine.Monetary:
-			m.Balances[a][v.Asset] = m.Balances[a][v.Asset].Sub(v.Amount)
+			if balances, ok := m.Balances[a]; ok {
+				if balance, ok := balances[v.Asset]; ok {
+					balances[v.Asset] = balance.Sub(v.Amount)
+				}
+			}
 		default:
 			panic(fmt.Errorf("invalid value type: %T", v))
 		}
@@ -478,30 +490,23 @@ func (m *Machine) Execute() error {
 	}
 }
 
-type BalanceRequest struct {
-	Account  string
-	Asset    string
-	Response chan *machine.MonetaryInt
-	Error    error
-}
-
 func (m *Machine) ResolveBalances(ctx context.Context, store Store) error {
 
-	m.Balances = make(map[machine.AccountAddress]map[machine.Asset]*machine.MonetaryInt)
+	// map account/asset/resourceIndex
+	assignBalanceAsResource := map[string]map[string]int{}
 
+	balancesQuery := BalanceQuery{}
 	for address, resourceIndex := range m.UnresolvedResourceBalances {
 		monetary := m.Resources[resourceIndex].(machine.Monetary)
-		balance, err := store.GetBalance(ctx, address, string(monetary.Asset))
-		if err != nil {
-			return err
+		balancesQuery[address] = append(balancesQuery[address], string(monetary.Asset))
+
+		if _, ok := assignBalanceAsResource[address]; !ok {
+			assignBalanceAsResource[address] = map[string]int{}
 		}
-		if balance.Cmp(ledger.Zero) < 0 {
-			return machine.NewErrNegativeAmount("tried to request the balance of account %s for asset %s: received %s: monetary amounts must be non-negative",
-				address, monetary.Asset, balance)
-		}
-		monetary.Amount = machine.NewMonetaryIntFromBigInt(balance)
-		m.Resources[resourceIndex] = monetary
+		assignBalanceAsResource[address][string(monetary.Asset)] = resourceIndex
 	}
+
+	m.Balances = make(map[machine.AccountAddress]map[machine.Asset]*machine.MonetaryInt)
 
 	// for every account that we need balances of, check if it's there
 	for addr, neededAssets := range m.Program.NeededBalances {
@@ -510,11 +515,11 @@ func (m *Machine) ResolveBalances(ctx context.Context, store Store) error {
 			return errors.New("invalid program (resolve balances: invalid address of account)")
 		}
 		accountAddress := (*account).(machine.AccountAddress)
-
-		if _, ok := m.Balances[accountAddress]; !ok {
-			m.Balances[accountAddress] = make(map[machine.Asset]*machine.MonetaryInt)
+		if string(accountAddress) == "world" {
+			return machine.NewErrInvalidVars("`@world` can only be used as a variable in the experimental interpreter, or if it is never used as a source")
 		}
-		// for every asset, send request
+
+		// for every asset, register the query
 		for addr := range neededAssets {
 			mon, ok := m.getResource(addr)
 			if !ok {
@@ -522,26 +527,46 @@ func (m *Machine) ResolveBalances(ctx context.Context, store Store) error {
 			}
 
 			asset := (*mon).(machine.HasAsset).GetAsset()
-			if string(accountAddress) == "world" {
-				m.Balances[accountAddress][asset] = machine.Zero
-				continue
-			}
 
-			balance, err := store.GetBalance(ctx, string(accountAddress), string(asset))
-			if err != nil {
-				return errors.Wrap(err, fmt.Sprintf("could not get balance for account %q", addr))
-			}
-
-			m.Balances[accountAddress][asset] = machine.NewMonetaryIntFromBigInt(balance)
+			balancesQuery[string(accountAddress)] = append(balancesQuery[string(accountAddress)], string(asset))
 		}
 	}
+
+	if len(balancesQuery) > 0 {
+		balances, err := store.GetBalances(ctx, balancesQuery)
+		if err != nil {
+			return fmt.Errorf("could not get balances: %w", err)
+		}
+
+		for account, forAssets := range balances {
+			for asset, balance := range forAssets {
+				if assignBalanceAsResource[account] != nil {
+					resourceIndex, ok := assignBalanceAsResource[account][asset]
+					if ok {
+						if balance.Cmp(ledger.Zero) < 0 {
+							return machine.NewErrNegativeAmount("tried to request the balance of account %s for asset %s: received %s: monetary amounts must be non-negative",
+								account, asset, balance)
+						}
+						monetary := m.Resources[resourceIndex].(machine.Monetary)
+						monetary.Amount = machine.NewMonetaryIntFromBigInt(balance)
+						m.Resources[resourceIndex] = monetary
+					}
+				}
+
+				if _, ok := m.Balances[machine.AccountAddress(account)]; !ok {
+					m.Balances[machine.AccountAddress(account)] = make(map[machine.Asset]*machine.MonetaryInt)
+				}
+				m.Balances[machine.AccountAddress(account)][machine.Asset(asset)] = machine.NewMonetaryIntFromBigInt(balance)
+			}
+		}
+	}
+
 	return nil
 }
 
-func (m *Machine) ResolveResources(ctx context.Context, store Store) ([]string, []string, error) {
-	//TODO(gfyrag): Is that really required? Feel like defensive programming.
+func (m *Machine) ResolveResources(ctx context.Context, store Store) error {
 	if m.resolveCalled {
-		return nil, nil, errors.New("tried to call ResolveResources twice")
+		return errors.New("tried to call ResolveResources twice")
 	}
 
 	m.resolveCalled = true
@@ -560,7 +585,7 @@ func (m *Machine) ResolveResources(ctx context.Context, store Store) ([]string, 
 			var ok bool
 			val, ok = m.Vars[res.Name]
 			if !ok {
-				return nil, nil, fmt.Errorf("missing variable '%s'", res.Name)
+				return fmt.Errorf("missing variable '%s'", res.Name)
 			}
 			if val.GetType() == machine.TypeAccount {
 				involvedAccountsMap[machine.Address(idx)] = string(val.(machine.AccountAddress))
@@ -571,17 +596,17 @@ func (m *Machine) ResolveResources(ctx context.Context, store Store) ([]string, 
 
 			account, err := store.GetAccount(ctx, addr)
 			if err != nil {
-				return nil, nil, err
+				return err
 			}
 
 			metadata, ok := account.Metadata[res.Key]
 			if !ok {
-				return nil, nil, machine.NewErrMissingMetadata("missing key %v in metadata for account %s", res.Key, addr)
+				return machine.NewErrMissingMetadata("missing key %v in metadata for account %s", res.Key, addr)
 			}
 
 			val, err = machine.NewValueFromString(res.Typ, metadata)
 			if err != nil {
-				return nil, nil, err
+				return err
 			}
 			if val.GetType() == machine.TypeAccount {
 				involvedAccountsMap[machine.Address(idx)] = string(val.(machine.AccountAddress))
@@ -594,12 +619,12 @@ func (m *Machine) ResolveResources(ctx context.Context, store Store) ([]string, 
 
 			ass, ok := m.getResource(res.Asset)
 			if !ok {
-				return nil, nil, fmt.Errorf(
+				return fmt.Errorf(
 					"variable '%s': tried to request account balance of an asset which has not yet been solved",
 					res.Name)
 			}
 			if (*ass).GetType() != machine.TypeAsset {
-				return nil, nil, fmt.Errorf(
+				return fmt.Errorf(
 					"variable '%s': tried to request account balance for an asset on wrong entity: %v instead of asset",
 					res.Name, (*ass).GetType())
 			}
@@ -619,25 +644,13 @@ func (m *Machine) ResolveResources(ctx context.Context, store Store) ([]string, 
 		m.Resources = append(m.Resources, val)
 	}
 
-	readLockAccounts := make([]string, 0)
-	for _, accountAddress := range m.Program.ReadLockAccounts {
-		readLockAccounts = append(readLockAccounts, involvedAccountsMap[accountAddress])
-	}
-
-	writeLockAccounts := make([]string, 0)
-	for _, machineAddress := range m.Program.WriteLockAccounts {
-		writeLockAccounts = append(writeLockAccounts, involvedAccountsMap[machineAddress])
-	}
-
-	slices.Sort(readLockAccounts)
-	slices.Sort(writeLockAccounts)
-	return readLockAccounts, writeLockAccounts, nil
+	return nil
 }
 
 func (m *Machine) SetVarsFromJSON(vars map[string]string) error {
 	v, err := m.Program.ParseVariablesJSON(vars)
 	if err != nil {
-		return machine.NewErrInvalidVars(err.Error())
+		return machine.NewErrInvalidVars("%s", err)
 	}
 	m.Vars = v
 	return nil

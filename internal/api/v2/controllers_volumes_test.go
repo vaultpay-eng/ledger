@@ -1,85 +1,87 @@
-package v2_test
+package v2
 
 import (
 	"bytes"
-
 	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"testing"
 
-	"github.com/formancehq/go-libs/auth"
-	"github.com/formancehq/go-libs/bun/bunpaginate"
-	"github.com/formancehq/go-libs/time"
-
-	sharedapi "github.com/formancehq/go-libs/api"
-	ledger "github.com/formancehq/ledger/internal"
-	v2 "github.com/formancehq/ledger/internal/api/v2"
-	"github.com/formancehq/ledger/internal/opentelemetry/metrics"
-	"github.com/formancehq/ledger/internal/storage/ledgerstore"
-
-	"github.com/formancehq/go-libs/query"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
+
+	"github.com/formancehq/go-libs/v4/api"
+	"github.com/formancehq/go-libs/v4/auth"
+	"github.com/formancehq/go-libs/v4/bun/bunpaginate"
+	"github.com/formancehq/go-libs/v4/pointer"
+	"github.com/formancehq/go-libs/v4/query"
+	"github.com/formancehq/go-libs/v4/time"
+
+	ledger "github.com/formancehq/ledger/internal"
+	"github.com/formancehq/ledger/internal/api/common"
+	storagecommon "github.com/formancehq/ledger/internal/storage/common"
 )
 
-func TestGetVolumes(t *testing.T) {
+func TestVolumesList(t *testing.T) {
 	t.Parallel()
 
 	type testCase struct {
 		name              string
 		queryParams       url.Values
 		body              string
-		expectQuery       ledgerstore.PaginatedQueryOptions[ledgerstore.FiltersForVolumes]
+		expectQuery       storagecommon.PaginatedQuery[ledger.GetVolumesOptions]
 		expectStatusCode  int
 		expectedErrorCode string
 	}
 	before := time.Now()
-	zero := time.Time{}
 
 	testCases := []testCase{
 		{
 			name: "basic",
-			expectQuery: ledgerstore.NewPaginatedQueryOptions(ledgerstore.FiltersForVolumes{
-				PITFilter: ledgerstore.PITFilter{
-					PIT: &before,
-					OOT: &zero,
+			expectQuery: storagecommon.InitialPaginatedQuery[ledger.GetVolumesOptions]{
+				PageSize: bunpaginate.QueryDefaultPageSize,
+				Options: storagecommon.ResourceQuery[ledger.GetVolumesOptions]{
+					PIT:    &before,
+					Expand: make([]string, 0),
 				},
-
-				UseInsertionDate: false,
-			}).
-				WithPageSize(v2.DefaultPageSize),
+				Column: "account",
+				Order:  pointer.For(bunpaginate.Order(bunpaginate.OrderAsc)),
+			},
 		},
 		{
 			name: "using metadata",
 			body: `{"$match": { "metadata[roles]": "admin" }}`,
-			expectQuery: ledgerstore.NewPaginatedQueryOptions(ledgerstore.FiltersForVolumes{
-				PITFilter: ledgerstore.PITFilter{
-					PIT: &before,
-					OOT: &zero,
+			expectQuery: storagecommon.InitialPaginatedQuery[ledger.GetVolumesOptions]{
+				PageSize: bunpaginate.QueryDefaultPageSize,
+				Options: storagecommon.ResourceQuery[ledger.GetVolumesOptions]{
+					PIT:     &before,
+					Builder: query.Match("metadata[roles]", "admin"),
+					Expand:  make([]string, 0),
 				},
-			}).
-				WithQueryBuilder(query.Match("metadata[roles]", "admin")).
-				WithPageSize(v2.DefaultPageSize),
+				Column: "account",
+				Order:  pointer.For(bunpaginate.Order(bunpaginate.OrderAsc)),
+			},
 		},
 		{
 			name: "using account",
 			body: `{"$match": { "account": "foo" }}`,
-			expectQuery: ledgerstore.NewPaginatedQueryOptions(ledgerstore.FiltersForVolumes{
-				PITFilter: ledgerstore.PITFilter{
-					PIT: &before,
-					OOT: &zero,
+			expectQuery: storagecommon.InitialPaginatedQuery[ledger.GetVolumesOptions]{
+				PageSize: bunpaginate.QueryDefaultPageSize,
+				Options: storagecommon.ResourceQuery[ledger.GetVolumesOptions]{
+					PIT:     &before,
+					Builder: query.Match("account", "foo"),
+					Expand:  make([]string, 0),
 				},
-			}).
-				WithQueryBuilder(query.Match("account", "foo")).
-				WithPageSize(v2.DefaultPageSize),
+				Column: "account",
+				Order:  pointer.For(bunpaginate.Order(bunpaginate.OrderAsc)),
+			},
 		},
 		{
 			name:              "using invalid query payload",
 			body:              `[]`,
 			expectStatusCode:  http.StatusBadRequest,
-			expectedErrorCode: v2.ErrValidation,
+			expectedErrorCode: common.ErrValidation,
 		},
 		{
 			name: "using pit",
@@ -87,34 +89,46 @@ func TestGetVolumes(t *testing.T) {
 				"pit":     []string{before.Format(time.RFC3339Nano)},
 				"groupBy": []string{"3"},
 			},
-			expectQuery: ledgerstore.NewPaginatedQueryOptions(ledgerstore.FiltersForVolumes{
-				PITFilter: ledgerstore.PITFilter{
-					PIT: &before,
-					OOT: &zero,
+			expectQuery: storagecommon.InitialPaginatedQuery[ledger.GetVolumesOptions]{
+				PageSize: bunpaginate.QueryDefaultPageSize,
+				Options: storagecommon.ResourceQuery[ledger.GetVolumesOptions]{
+					PIT:    &before,
+					Expand: make([]string, 0),
+					Opts: ledger.GetVolumesOptions{
+						GroupLvl: 3,
+					},
 				},
-				GroupLvl: 3,
-			}).WithPageSize(v2.DefaultPageSize),
+				Column: "account",
+				Order:  pointer.For(bunpaginate.Order(bunpaginate.OrderAsc)),
+			},
 		},
 		{
-			name: "using Exists metadata filter",
+			name: "using exists metadata filter",
 			body: `{"$exists": { "metadata": "foo" }}`,
-			expectQuery: ledgerstore.NewPaginatedQueryOptions(ledgerstore.FiltersForVolumes{
-				PITFilter: ledgerstore.PITFilter{
-					PIT: &before,
-					OOT: &zero,
+			expectQuery: storagecommon.InitialPaginatedQuery[ledger.GetVolumesOptions]{
+				PageSize: bunpaginate.QueryDefaultPageSize,
+				Options: storagecommon.ResourceQuery[ledger.GetVolumesOptions]{
+					PIT:     &before,
+					Builder: query.Exists("metadata", "foo"),
+					Expand:  make([]string, 0),
 				},
-			}).WithPageSize(v2.DefaultPageSize).WithQueryBuilder(query.Exists("metadata", "foo")),
+				Column: "account",
+				Order:  pointer.For(bunpaginate.Order(bunpaginate.OrderAsc)),
+			},
 		},
 		{
 			name: "using balance filter",
 			body: `{"$gte": { "balance[EUR]": 50 }}`,
-			expectQuery: ledgerstore.NewPaginatedQueryOptions(ledgerstore.FiltersForVolumes{
-				PITFilter: ledgerstore.PITFilter{
-					PIT: &before,
-					OOT: &zero,
+			expectQuery: storagecommon.InitialPaginatedQuery[ledger.GetVolumesOptions]{
+				PageSize: bunpaginate.QueryDefaultPageSize,
+				Options: storagecommon.ResourceQuery[ledger.GetVolumesOptions]{
+					PIT:     &before,
+					Builder: query.Gte("balance[EUR]", big.NewInt(50)),
+					Expand:  make([]string, 0),
 				},
-			}).WithQueryBuilder(query.Gte("balance[EUR]", float64(50))).
-				WithPageSize(v2.DefaultPageSize),
+				Column: "account",
+				Order:  pointer.For(bunpaginate.Order(bunpaginate.OrderAsc)),
+			},
 		},
 	}
 
@@ -140,14 +154,14 @@ func TestGetVolumes(t *testing.T) {
 				},
 			}
 
-			backend, mockLedger := newTestingBackend(t, true)
+			systemController, ledgerController := newTestingSystemController(t, true)
 			if testCase.expectStatusCode < 300 && testCase.expectStatusCode >= 200 {
-				mockLedger.EXPECT().
-					GetVolumesWithBalances(gomock.Any(), ledgerstore.NewGetVolumesWithBalancesQuery(testCase.expectQuery)).
+				ledgerController.EXPECT().
+					GetVolumesWithBalances(gomock.Any(), testCase.expectQuery).
 					Return(&expectedCursor, nil)
 			}
 
-			router := v2.NewRouter(backend, nil, metrics.NewNoOpRegistry(), auth.NewNoAuth(), testing.Verbose())
+			router := NewRouter(systemController, auth.NewNoAuth(), "develop")
 
 			req := httptest.NewRequest(http.MethodGet, "/xxx/volumes?endTime="+before.Format(time.RFC3339Nano), bytes.NewBufferString(testCase.body))
 			rec := httptest.NewRecorder()
@@ -163,11 +177,11 @@ func TestGetVolumes(t *testing.T) {
 
 			require.Equal(t, testCase.expectStatusCode, rec.Code)
 			if testCase.expectStatusCode < 300 && testCase.expectStatusCode >= 200 {
-				cursor := sharedapi.DecodeCursorResponse[ledger.VolumesWithBalanceByAssetByAccount](t, rec.Body)
+				cursor := api.DecodeCursorResponse[ledger.VolumesWithBalanceByAssetByAccount](t, rec.Body)
 				require.Equal(t, expectedCursor, *cursor)
 			} else {
-				err := sharedapi.ErrorResponse{}
-				sharedapi.Decode(t, rec.Body, &err)
+				err := api.ErrorResponse{}
+				api.Decode(t, rec.Body, &err)
 				require.EqualValues(t, testCase.expectedErrorCode, err.ErrorCode)
 			}
 		})

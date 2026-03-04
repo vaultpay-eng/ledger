@@ -4,10 +4,9 @@ package sdkerrors
 
 import (
 	"encoding/json"
-	"github.com/formancehq/stack/ledger/client/models/components"
+	"github.com/formancehq/ledger/pkg/client/models/components"
 )
 
-// ErrorResponse - Error
 type ErrorResponse struct {
 	ErrorCode    components.ErrorsEnum `json:"errorCode"`
 	ErrorMessage string                `json:"errorMessage"`

@@ -3,7 +3,7 @@
 package operations
 
 import (
-	"github.com/formancehq/stack/ledger/client/models/components"
+	"github.com/formancehq/ledger/pkg/client/models/components"
 )
 
 type V2CreateTransactionRequest struct {
@@ -13,6 +13,10 @@ type V2CreateTransactionRequest struct {
 	DryRun *bool `queryParam:"style=form,explode=true,name=dryRun"`
 	// Use an idempotency key
 	IdempotencyKey *string `header:"style=simple,explode=false,name=Idempotency-Key"`
+	// Disable balance checks when passing postings
+	Force *bool `queryParam:"style=form,explode=true,name=force"`
+	// Schema version to use for validation
+	SchemaVersion *string `queryParam:"style=form,explode=true,name=schemaVersion"`
 	// The request body must contain at least one of the following objects:
 	//   - `postings`: suitable for simple transactions
 	//   - `script`: enabling more complex transactions with Numscript
@@ -41,6 +45,20 @@ func (o *V2CreateTransactionRequest) GetIdempotencyKey() *string {
 	return o.IdempotencyKey
 }
 
+func (o *V2CreateTransactionRequest) GetForce() *bool {
+	if o == nil {
+		return nil
+	}
+	return o.Force
+}
+
+func (o *V2CreateTransactionRequest) GetSchemaVersion() *string {
+	if o == nil {
+		return nil
+	}
+	return o.SchemaVersion
+}
+
 func (o *V2CreateTransactionRequest) GetV2PostTransaction() components.V2PostTransaction {
 	if o == nil {
 		return components.V2PostTransaction{}
@@ -52,6 +70,7 @@ type V2CreateTransactionResponse struct {
 	HTTPMeta components.HTTPMetadata `json:"-"`
 	// OK
 	V2CreateTransactionResponse *components.V2CreateTransactionResponse
+	Headers                     map[string][]string
 }
 
 func (o *V2CreateTransactionResponse) GetHTTPMeta() components.HTTPMetadata {
@@ -66,4 +85,11 @@ func (o *V2CreateTransactionResponse) GetV2CreateTransactionResponse() *componen
 		return nil
 	}
 	return o.V2CreateTransactionResponse
+}
+
+func (o *V2CreateTransactionResponse) GetHeaders() map[string][]string {
+	if o == nil {
+		return map[string][]string{}
+	}
+	return o.Headers
 }

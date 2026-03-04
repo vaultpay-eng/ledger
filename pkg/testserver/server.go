@@ -3,172 +3,134 @@ package testserver
 import (
 	"context"
 	"fmt"
-	"io"
-	"net/http"
-	"os"
-	"strings"
 	"time"
 
-	"github.com/formancehq/go-libs/bun/bunconnect"
-	"github.com/formancehq/go-libs/httpclient"
-	"github.com/formancehq/go-libs/httpserver"
-	"github.com/formancehq/go-libs/logging"
-	"github.com/formancehq/go-libs/service"
+	"github.com/formancehq/go-libs/v4/bun/bunconnect"
+	"github.com/formancehq/go-libs/v4/testing/deferred"
+	"github.com/formancehq/go-libs/v4/testing/testservice"
+
 	"github.com/formancehq/ledger/cmd"
-	ledgerclient "github.com/formancehq/stack/ledger/client"
-	"github.com/stretchr/testify/require"
 )
 
-type T interface {
-	require.TestingT
-	TempDir() string
-	Cleanup(func())
-	Helper()
-	Logf(format string, args ...any)
-}
-
-type Configuration struct {
-	PostgresConfiguration bunconnect.ConnectionOptions
-	Output                io.Writer
-	Debug                 bool
-}
-
-type Server struct {
-	configuration Configuration
-	t             T
-	httpClient    *ledgerclient.Formance
-	cancel        func()
-	ctx           context.Context
-	errorChan     chan error
-}
-
-func (s *Server) Start() {
-	s.t.Helper()
-
-	tmpDir := s.t.TempDir()
-	require.NoError(s.t, os.MkdirAll(tmpDir, 0700))
-	s.t.Cleanup(func() {
-		_ = os.RemoveAll(tmpDir)
-	})
-
-	rootCmd := cmd.NewRootCommand()
-	args := []string{
-		"serve",
-		"--" + cmd.BindFlag, ":0",
-		"--" + bunconnect.PostgresURIFlag, s.configuration.PostgresConfiguration.DatabaseSourceName,
-		"--" + bunconnect.PostgresMaxOpenConnsFlag, fmt.Sprint(s.configuration.PostgresConfiguration.MaxOpenConns),
-		"--" + bunconnect.PostgresConnMaxIdleTimeFlag, fmt.Sprint(s.configuration.PostgresConfiguration.ConnMaxIdleTime),
-	}
-	if s.configuration.PostgresConfiguration.MaxIdleConns != 0 {
-		args = append(
-			args,
-			"--"+bunconnect.PostgresMaxIdleConnsFlag,
-			fmt.Sprint(s.configuration.PostgresConfiguration.MaxIdleConns),
-		)
-	}
-	if s.configuration.PostgresConfiguration.MaxOpenConns != 0 {
-		args = append(
-			args,
-			"--"+bunconnect.PostgresMaxOpenConnsFlag,
-			fmt.Sprint(s.configuration.PostgresConfiguration.MaxOpenConns),
-		)
-	}
-	if s.configuration.PostgresConfiguration.ConnMaxIdleTime != 0 {
-		args = append(
-			args,
-			"--"+bunconnect.PostgresConnMaxIdleTimeFlag,
-			fmt.Sprint(s.configuration.PostgresConfiguration.ConnMaxIdleTime),
-		)
-	}
-	if s.configuration.Debug {
-		args = append(args, "--"+service.DebugFlag)
-	}
-
-	s.t.Logf("Starting application with flags: %s", strings.Join(args, " "))
-	rootCmd.SetArgs(args)
-	rootCmd.SilenceErrors = true
-	output := s.configuration.Output
-	if output == nil {
-		output = io.Discard
-	}
-	rootCmd.SetOut(output)
-	rootCmd.SetErr(output)
-
-	s.ctx = logging.TestingContext()
-	s.ctx, s.cancel = context.WithCancel(s.ctx)
-	s.ctx = service.ContextWithLifecycle(s.ctx)
-	s.ctx = httpserver.ContextWithServerInfo(s.ctx)
-
-	s.errorChan = make(chan error, 1)
-	go func() {
-		s.errorChan <- rootCmd.ExecuteContext(s.ctx)
-	}()
-
-	select {
-	case <-service.Ready(s.ctx):
-	case err := <-s.errorChan:
-		if err != nil {
-			require.NoError(s.t, err)
-		} else {
-			require.Fail(s.t, "unexpected service stop")
-		}
-	}
-
-	s.httpClient = ledgerclient.New(
-		ledgerclient.WithServerURL(httpserver.URL(s.ctx)),
-		ledgerclient.WithClient(&http.Client{
-			Transport: httpclient.NewDebugHTTPTransport(http.DefaultTransport),
-		}),
+func GetTestServerOptions(postgresConnectionOptions *deferred.Deferred[bunconnect.ConnectionOptions]) testservice.Option {
+	return testservice.WithInstruments(
+		testservice.AppendArgsInstrumentation("serve", "--"+cmd.BindFlag, ":0", "--schema-enforcement-mode", "strict"),
+		testservice.PostgresInstrumentation(postgresConnectionOptions),
+		testservice.HTTPServerInstrumentation(),
 	)
 }
 
-func (s *Server) Stop() {
-	s.t.Helper()
+func NewTestServer(postgresConnectionOptions *deferred.Deferred[bunconnect.ConnectionOptions], options ...testservice.Option) *testservice.Service {
+	return testservice.New(
+		cmd.NewRootCommand,
+		append([]testservice.Option{
+			GetTestServerOptions(postgresConnectionOptions),
+		}, options...)...,
+	)
+}
 
-	if s.cancel == nil {
-		return
-	}
-	s.cancel()
-	s.cancel = nil
-
-	// Wait app to be marked as stopped
-	select {
-	case <-service.Stopped(s.ctx):
-	case <-time.After(5 * time.Second):
-		require.Fail(s.t, "service should have been stopped")
-	}
-
-	// Ensure the app has been properly shutdown
-	select {
-	case err := <-s.errorChan:
-		require.NoError(s.t, err)
-	case <-time.After(5 * time.Second):
-		require.Fail(s.t, "service should have been stopped without error")
+func ExperimentalFeaturesInstrumentation() testservice.InstrumentationFunc {
+	return func(ctx context.Context, runConfiguration *testservice.RunConfiguration) error {
+		runConfiguration.AppendArgs("--" + cmd.ExperimentalFeaturesFlag)
+		return nil
 	}
 }
 
-func (s *Server) Client() *ledgerclient.Formance {
-	return s.httpClient
-}
-
-func (s *Server) Restart() {
-	s.t.Helper()
-
-	s.Stop()
-	s.Start()
-}
-
-func New(t T, configuration Configuration) *Server {
-	srv := &Server{
-		t:             t,
-		configuration: configuration,
+func ExperimentalExportersInstrumentation() testservice.InstrumentationFunc {
+	return func(ctx context.Context, runConfiguration *testservice.RunConfiguration) error {
+		runConfiguration.AppendArgs("--" + cmd.ExperimentalExporters)
+		return nil
 	}
-	t.Logf("Start testing server")
-	srv.Start()
-	t.Cleanup(func() {
-		t.Logf("Stop testing server")
-		srv.Stop()
-	})
+}
 
-	return srv
+func ExperimentalEnableWorker() testservice.InstrumentationFunc {
+	return func(ctx context.Context, runConfiguration *testservice.RunConfiguration) error {
+		runConfiguration.AppendArgs("--" + cmd.WorkerEnabledFlag)
+		return nil
+	}
+}
+
+func ExperimentalNumscriptRewriteInstrumentation() testservice.InstrumentationFunc {
+	return func(ctx context.Context, runConfiguration *testservice.RunConfiguration) error {
+		runConfiguration.AppendArgs("--" + cmd.NumscriptInterpreterFlag)
+		return nil
+	}
+}
+
+func MaxPageSizeInstrumentation(size uint64) testservice.InstrumentationFunc {
+	return func(ctx context.Context, runConfiguration *testservice.RunConfiguration) error {
+		runConfiguration.AppendArgs("--"+cmd.MaxPageSizeFlag, fmt.Sprint(size))
+		return nil
+	}
+}
+
+func DefaultPageSizeInstrumentation(size uint64) testservice.InstrumentationFunc {
+	return func(ctx context.Context, runConfiguration *testservice.RunConfiguration) error {
+		runConfiguration.AppendArgs("--"+cmd.DefaultPageSizeFlag, fmt.Sprint(size))
+		return nil
+	}
+}
+
+func ExperimentalPipelinesPushRetryPeriodInstrumentation(duration time.Duration) testservice.InstrumentationFunc {
+	return func(ctx context.Context, runConfiguration *testservice.RunConfiguration) error {
+		runConfiguration.AppendArgs("--"+cmd.WorkerPipelinesPushRetryPeriodFlag, fmt.Sprint(duration))
+		return nil
+	}
+}
+
+func ExperimentalPipelinesPullIntervalInstrumentation(duration time.Duration) testservice.InstrumentationFunc {
+	return func(ctx context.Context, runConfiguration *testservice.RunConfiguration) error {
+		runConfiguration.AppendArgs("--"+cmd.WorkerPipelinesPullIntervalFlag, fmt.Sprint(duration))
+		return nil
+	}
+}
+
+func ExperimentalPipelinesSyncPeriodInstrumentation(duration time.Duration) testservice.InstrumentationFunc {
+	return func(ctx context.Context, runConfiguration *testservice.RunConfiguration) error {
+		runConfiguration.AppendArgs("--"+cmd.WorkerPipelinesSyncPeriod, fmt.Sprint(duration))
+		return nil
+	}
+}
+
+func GRPCAddressInstrumentation(addr string) testservice.InstrumentationFunc {
+	return func(ctx context.Context, runConfiguration *testservice.RunConfiguration) error {
+		runConfiguration.AppendArgs("--"+cmd.WorkerGRPCAddressFlag, addr)
+		return nil
+	}
+}
+
+func WorkerAddressInstrumentation(addr *deferred.Deferred[string]) testservice.InstrumentationFunc {
+	return func(ctx context.Context, runConfiguration *testservice.RunConfiguration) error {
+		address, err := addr.Wait(ctx)
+		if err != nil {
+			return fmt.Errorf("waiting for worker address: %w", err)
+		}
+		runConfiguration.AppendArgs("--"+cmd.WorkerGRPCAddressFlag, address)
+		return nil
+	}
+}
+
+// AuthInstrumentation enables authentication for testing
+// This is used for integration tests to verify authentication works correctly
+// The auth module from go-libs uses flags declared in auth/cli.go:
+// - auth-enabled: Enable auth
+// - auth-issuer: Issuer URL
+// - auth-check-scopes: Check scopes
+// - auth-service: Service name
+func AuthInstrumentation(issuer *deferred.Deferred[string]) testservice.InstrumentationFunc {
+	return func(ctx context.Context, runConfiguration *testservice.RunConfiguration) error {
+		// Enable auth
+		runConfiguration.AppendArgs("--auth-enabled")
+		// Set issuer
+		vIssuer, err := issuer.Wait(ctx)
+		if err != nil {
+			return fmt.Errorf("waiting for issuer: %w", err)
+		}
+		runConfiguration.AppendArgs("--auth-issuer", vIssuer)
+		// Enable scope checking
+		runConfiguration.AppendArgs("--auth-check-scopes")
+		// Set service name
+		runConfiguration.AppendArgs("--auth-service", "ledger")
+		return nil
+	}
 }

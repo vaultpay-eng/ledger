@@ -1,17 +1,19 @@
 package v1
 
 import (
-	"context"
 	_ "embed"
 	"net/http"
 
-	"github.com/formancehq/go-libs/bun/bunpaginate"
+	"github.com/formancehq/go-libs/v4/api"
+	"github.com/formancehq/go-libs/v4/bun/bunpaginate"
+	"github.com/formancehq/go-libs/v4/collectionutils"
 
-	"github.com/formancehq/go-libs/collectionutils"
-	"github.com/formancehq/ledger/internal/storage/systemstore"
-
-	sharedapi "github.com/formancehq/go-libs/api"
-	"github.com/formancehq/ledger/internal/api/backend"
+	ledger "github.com/formancehq/ledger/internal"
+	"github.com/formancehq/ledger/internal/api/common"
+	ledgercontroller "github.com/formancehq/ledger/internal/controller/ledger"
+	"github.com/formancehq/ledger/internal/controller/system"
+	storagecommon "github.com/formancehq/ledger/internal/storage/common"
+	systemstore "github.com/formancehq/ledger/internal/storage/system"
 )
 
 type ConfigInfo struct {
@@ -21,7 +23,8 @@ type ConfigInfo struct {
 }
 
 type LedgerConfig struct {
-	LedgerStorage *LedgerStorage `json:"storage"`
+	LedgerStorage         *LedgerStorage                         `json:"storage"`
+	SchemaEnforcementMode ledgercontroller.SchemaEnforcementMode `json:"schemaEnforcementMode"`
 }
 
 type LedgerStorage struct {
@@ -29,29 +32,30 @@ type LedgerStorage struct {
 	Ledgers []string `json:"ledgers"`
 }
 
-func getInfo(backend backend.Backend) func(w http.ResponseWriter, r *http.Request) {
+func GetInfo(systemController system.Controller, version string) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		ledgerNames := make([]string, 0)
-		if err := bunpaginate.Iterate(r.Context(), systemstore.NewListLedgersQuery(100),
-			func(ctx context.Context, q systemstore.ListLedgersQuery) (*bunpaginate.Cursor[systemstore.Ledger], error) {
-				return backend.ListLedgers(ctx, q)
-			},
-			func(cursor *bunpaginate.Cursor[systemstore.Ledger]) error {
-				ledgerNames = append(ledgerNames, collectionutils.Map(cursor.Data, func(from systemstore.Ledger) string {
+		if err := storagecommon.Iterate(r.Context(), storagecommon.InitialPaginatedQuery[systemstore.ListLedgersQueryPayload]{
+			PageSize: 100,
+		},
+			systemController.ListLedgers,
+			func(cursor *bunpaginate.Cursor[ledger.Ledger]) error {
+				ledgerNames = append(ledgerNames, collectionutils.Map(cursor.Data, func(from ledger.Ledger) string {
 					return from.Name
 				})...)
 				return nil
 			},
 		); err != nil {
-			sharedapi.InternalServerError(w, r, err)
+			common.HandleCommonErrors(w, r, err)
 			return
 		}
 
-		sharedapi.Ok(w, ConfigInfo{
+		api.Ok(w, ConfigInfo{
 			Server:  "ledger",
-			Version: backend.GetVersion(),
+			Version: version,
 			Config: &LedgerConfig{
+				SchemaEnforcementMode: systemController.GetSchemaEnforcementMode(r.Context()),
 				LedgerStorage: &LedgerStorage{
 					Driver:  "postgres",
 					Ledgers: ledgerNames,

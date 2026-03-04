@@ -3,13 +3,21 @@
 package operations
 
 import (
-	"github.com/formancehq/stack/ledger/client/models/components"
+	"github.com/formancehq/ledger/pkg/client/models/components"
 )
 
 type V2CreateBulkRequest struct {
 	// Name of the ledger.
-	Ledger      string                     `pathParam:"style=simple,explode=false,name=ledger"`
-	RequestBody []components.V2BulkElement `request:"mediaType=application/json"`
+	Ledger string `pathParam:"style=simple,explode=false,name=ledger"`
+	// Continue on failure
+	ContinueOnFailure *bool `queryParam:"style=form,explode=true,name=continueOnFailure"`
+	// Make bulk atomic
+	Atomic *bool `queryParam:"style=form,explode=true,name=atomic"`
+	// Process bulk elements in parallel
+	Parallel *bool `queryParam:"style=form,explode=true,name=parallel"`
+	// Default schema version to use for validation (can be overridden per element)
+	SchemaVersion *string                    `queryParam:"style=form,explode=true,name=schemaVersion"`
+	RequestBody   []components.V2BulkElement `request:"mediaType=application/json"`
 }
 
 func (o *V2CreateBulkRequest) GetLedger() string {
@@ -19,9 +27,37 @@ func (o *V2CreateBulkRequest) GetLedger() string {
 	return o.Ledger
 }
 
-func (o *V2CreateBulkRequest) GetRequestBody() []components.V2BulkElement {
+func (o *V2CreateBulkRequest) GetContinueOnFailure() *bool {
 	if o == nil {
 		return nil
+	}
+	return o.ContinueOnFailure
+}
+
+func (o *V2CreateBulkRequest) GetAtomic() *bool {
+	if o == nil {
+		return nil
+	}
+	return o.Atomic
+}
+
+func (o *V2CreateBulkRequest) GetParallel() *bool {
+	if o == nil {
+		return nil
+	}
+	return o.Parallel
+}
+
+func (o *V2CreateBulkRequest) GetSchemaVersion() *string {
+	if o == nil {
+		return nil
+	}
+	return o.SchemaVersion
+}
+
+func (o *V2CreateBulkRequest) GetRequestBody() []components.V2BulkElement {
+	if o == nil {
+		return []components.V2BulkElement{}
 	}
 	return o.RequestBody
 }

@@ -1,9 +1,12 @@
 package ledger
 
 import (
-	"github.com/formancehq/go-libs/metadata"
-	"github.com/formancehq/go-libs/time"
+	"math/big"
+
 	"github.com/uptrace/bun"
+
+	"github.com/formancehq/go-libs/v4/metadata"
+	"github.com/formancehq/go-libs/v4/time"
 )
 
 const (
@@ -11,43 +14,31 @@ const (
 )
 
 type Account struct {
-	bun.BaseModel `bun:"table:accounts,alias:accounts"`
+	bun.BaseModel `bun:"table:accounts"`
 
-	Address    string            `json:"address"`
-	Metadata   metadata.Metadata `json:"metadata"`
-	FirstUsage time.Time         `json:"-" bun:"first_usage,type:timestamp without timezone"`
+	Address          string            `json:"address" bun:"address"`
+	Metadata         metadata.Metadata `json:"metadata" bun:"metadata,type:jsonb,default:'{}'"`
+	FirstUsage       time.Time         `json:"firstUsage" bun:"first_usage,type:timestamp without time zone,nullzero"`
+	InsertionDate    time.Time         `json:"insertionDate" bun:"insertion_date,type:timestamp without time zone,nullzero"`
+	UpdatedAt        time.Time         `json:"updatedAt" bun:"updated_at,type:timestamp without time zone,nullzero"`
+	Volumes          VolumesByAssets   `json:"volumes,omitempty" bun:"volumes,scanonly"`
+	EffectiveVolumes VolumesByAssets   `json:"effectiveVolumes,omitempty" bun:"effective_volumes,scanonly"`
 }
 
-func (a Account) copy() Account {
-	a.Metadata = a.Metadata.Copy()
-	return a
+func (a Account) GetAddress() string {
+	return a.Address
 }
 
-func NewAccount(address string) Account {
-	return Account{
-		Address:  address,
-		Metadata: metadata.Metadata{},
-	}
+type AccountsVolumes struct {
+	bun.BaseModel `bun:"accounts_volumes"`
+
+	Account string   `bun:"accounts_address,type:varchar"`
+	Asset   string   `bun:"asset,type:varchar"`
+	Input   *big.Int `bun:"input,type:numeric"`
+	Output  *big.Int `bun:"output,type:numeric"`
 }
 
-type ExpandedAccount struct {
-	Account          `bun:",extend"`
-	Volumes          VolumesByAssets `json:"volumes,omitempty" bun:"volumes,type:jsonb"`
-	EffectiveVolumes VolumesByAssets `json:"effectiveVolumes,omitempty" bun:"effective_volumes,type:jsonb"`
-}
-
-func NewExpandedAccount(address string) ExpandedAccount {
-	return ExpandedAccount{
-		Account: Account{
-			Address:  address,
-			Metadata: metadata.Metadata{},
-		},
-		Volumes: map[string]*Volumes{},
-	}
-}
-
-func (v ExpandedAccount) Copy() ExpandedAccount {
-	v.Account = v.Account.copy()
-	v.Volumes = v.Volumes.copy()
-	return v
+type AccountWithDefaultMetadata struct {
+	*Account
+	DefaultMetadata metadata.Metadata
 }

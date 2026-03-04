@@ -3,9 +3,7 @@
 package operations
 
 import (
-	"github.com/formancehq/stack/ledger/client/internal/utils"
-	"github.com/formancehq/stack/ledger/client/models/components"
-	"github.com/formancehq/stack/ledger/client/models/sdkerrors"
+	"github.com/formancehq/ledger/pkg/client/models/components"
 )
 
 type ListAccountsRequest struct {
@@ -13,7 +11,7 @@ type ListAccountsRequest struct {
 	Ledger string `pathParam:"style=simple,explode=false,name=ledger"`
 	// The maximum number of results to return per page.
 	//
-	PageSize *int64 `default:"15" queryParam:"style=form,explode=true,name=pageSize"`
+	PageSize *int64 `queryParam:"style=form,explode=true,name=pageSize"`
 	// Pagination cursor, will return accounts after given address, in descending order.
 	After *string `queryParam:"style=form,explode=true,name=after"`
 	// Filter accounts by address pattern (regular expression placed between ^ and $).
@@ -35,19 +33,8 @@ type ListAccountsRequest struct {
 	// Deprecated, please use `cursor` instead.
 	//
 	//
-	// Deprecated field: This will be removed in a future release, please migrate away from it as soon as possible.
+	// Deprecated: This will be removed in a future release, please migrate away from it as soon as possible.
 	PaginationToken *string `queryParam:"style=form,explode=true,name=pagination_token"`
-}
-
-func (l ListAccountsRequest) MarshalJSON() ([]byte, error) {
-	return utils.MarshalJSON(l, "", false)
-}
-
-func (l *ListAccountsRequest) UnmarshalJSON(data []byte) error {
-	if err := utils.UnmarshalJSON(data, &l, "", false, false); err != nil {
-		return err
-	}
-	return nil
 }
 
 func (o *ListAccountsRequest) GetLedger() string {
@@ -111,7 +98,7 @@ type ListAccountsResponse struct {
 	// OK
 	AccountsCursorResponse *components.AccountsCursorResponse
 	// Not found
-	ErrorResponse *sdkerrors.ErrorResponse
+	ErrorResponse *components.ErrorResponse
 }
 
 func (o *ListAccountsResponse) GetHTTPMeta() components.HTTPMetadata {
@@ -128,7 +115,7 @@ func (o *ListAccountsResponse) GetAccountsCursorResponse() *components.AccountsC
 	return o.AccountsCursorResponse
 }
 
-func (o *ListAccountsResponse) GetErrorResponse() *sdkerrors.ErrorResponse {
+func (o *ListAccountsResponse) GetErrorResponse() *components.ErrorResponse {
 	if o == nil {
 		return nil
 	}

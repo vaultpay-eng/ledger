@@ -5,7 +5,7 @@ package components
 import (
 	"errors"
 	"fmt"
-	"github.com/formancehq/stack/ledger/client/internal/utils"
+	"github.com/formancehq/ledger/pkg/client/internal/utils"
 	"math/big"
 )
 
@@ -17,8 +17,8 @@ const (
 )
 
 type V2TargetID struct {
-	Str    *string
-	Bigint *big.Int
+	Str    *string  `queryParam:"inline"`
+	Bigint *big.Int `queryParam:"inline"`
 
 	Type V2TargetIDType
 }

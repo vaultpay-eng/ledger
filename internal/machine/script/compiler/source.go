@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/formancehq/ledger/internal/machine"
-
 	"github.com/formancehq/ledger/internal/machine/script/parser"
 	"github.com/formancehq/ledger/internal/machine/vm/program"
 )
@@ -182,7 +181,6 @@ func (p *parseVisitor) VisitSource(c parser.ISourceContext, pushAsset func(), is
 
 		isUnboundedOverdraft := p.isWorld(*accAddr) || p.isOverdraftUnbounded(overdraft)
 		if !isUnboundedOverdraft {
-			p.writeLockAccounts[*accAddr] = struct{}{}
 			neededAccounts[*accAddr] = struct{}{}
 		}
 

@@ -3,7 +3,7 @@
 package operations
 
 import (
-	"github.com/formancehq/stack/ledger/client/models/components"
+	"github.com/formancehq/ledger/pkg/client/models/components"
 )
 
 type V2AddMetadataToAccountRequest struct {
@@ -19,6 +19,8 @@ type V2AddMetadataToAccountRequest struct {
 	DryRun *bool `queryParam:"style=form,explode=true,name=dryRun"`
 	// Use an idempotency key
 	IdempotencyKey *string `header:"style=simple,explode=false,name=Idempotency-Key"`
+	// Schema version to use for validation
+	SchemaVersion *string `queryParam:"style=form,explode=true,name=schemaVersion"`
 	// metadata
 	RequestBody map[string]string `request:"mediaType=application/json"`
 }
@@ -51,6 +53,13 @@ func (o *V2AddMetadataToAccountRequest) GetIdempotencyKey() *string {
 	return o.IdempotencyKey
 }
 
+func (o *V2AddMetadataToAccountRequest) GetSchemaVersion() *string {
+	if o == nil {
+		return nil
+	}
+	return o.SchemaVersion
+}
+
 func (o *V2AddMetadataToAccountRequest) GetRequestBody() map[string]string {
 	if o == nil {
 		return map[string]string{}
@@ -60,6 +69,7 @@ func (o *V2AddMetadataToAccountRequest) GetRequestBody() map[string]string {
 
 type V2AddMetadataToAccountResponse struct {
 	HTTPMeta components.HTTPMetadata `json:"-"`
+	Headers  map[string][]string
 }
 
 func (o *V2AddMetadataToAccountResponse) GetHTTPMeta() components.HTTPMetadata {
@@ -67,4 +77,11 @@ func (o *V2AddMetadataToAccountResponse) GetHTTPMeta() components.HTTPMetadata {
 		return components.HTTPMetadata{}
 	}
 	return o.HTTPMeta
+}
+
+func (o *V2AddMetadataToAccountResponse) GetHeaders() map[string][]string {
+	if o == nil {
+		return map[string][]string{}
+	}
+	return o.Headers
 }

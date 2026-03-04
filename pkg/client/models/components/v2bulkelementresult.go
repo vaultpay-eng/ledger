@@ -6,11 +6,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/formancehq/stack/ledger/client/internal/utils"
+	"github.com/formancehq/ledger/pkg/client/internal/utils"
 )
 
 type V2BulkElementResultError struct {
 	ResponseType     string  `json:"responseType"`
+	LogID            int64   `json:"logID"`
 	ErrorCode        string  `json:"errorCode"`
 	ErrorDescription string  `json:"errorDescription"`
 	ErrorDetails     *string `json:"errorDetails,omitempty"`
@@ -21,6 +22,13 @@ func (o *V2BulkElementResultError) GetResponseType() string {
 		return ""
 	}
 	return o.ResponseType
+}
+
+func (o *V2BulkElementResultError) GetLogID() int64 {
+	if o == nil {
+		return 0
+	}
+	return o.LogID
 }
 
 func (o *V2BulkElementResultError) GetErrorCode() string {
@@ -46,6 +54,7 @@ func (o *V2BulkElementResultError) GetErrorDetails() *string {
 
 type V2BulkElementResultDeleteMetadata struct {
 	ResponseType string `json:"responseType"`
+	LogID        int64  `json:"logID"`
 }
 
 func (o *V2BulkElementResultDeleteMetadata) GetResponseType() string {
@@ -55,8 +64,16 @@ func (o *V2BulkElementResultDeleteMetadata) GetResponseType() string {
 	return o.ResponseType
 }
 
+func (o *V2BulkElementResultDeleteMetadata) GetLogID() int64 {
+	if o == nil {
+		return 0
+	}
+	return o.LogID
+}
+
 type V2BulkElementResultRevertTransaction struct {
 	ResponseType string        `json:"responseType"`
+	LogID        int64         `json:"logID"`
 	Data         V2Transaction `json:"data"`
 }
 
@@ -65,6 +82,13 @@ func (o *V2BulkElementResultRevertTransaction) GetResponseType() string {
 		return ""
 	}
 	return o.ResponseType
+}
+
+func (o *V2BulkElementResultRevertTransaction) GetLogID() int64 {
+	if o == nil {
+		return 0
+	}
+	return o.LogID
 }
 
 func (o *V2BulkElementResultRevertTransaction) GetData() V2Transaction {
@@ -76,6 +100,7 @@ func (o *V2BulkElementResultRevertTransaction) GetData() V2Transaction {
 
 type V2BulkElementResultAddMetadata struct {
 	ResponseType string `json:"responseType"`
+	LogID        int64  `json:"logID"`
 }
 
 func (o *V2BulkElementResultAddMetadata) GetResponseType() string {
@@ -85,8 +110,16 @@ func (o *V2BulkElementResultAddMetadata) GetResponseType() string {
 	return o.ResponseType
 }
 
+func (o *V2BulkElementResultAddMetadata) GetLogID() int64 {
+	if o == nil {
+		return 0
+	}
+	return o.LogID
+}
+
 type V2BulkElementResultCreateTransaction struct {
 	ResponseType string        `json:"responseType"`
+	LogID        int64         `json:"logID"`
 	Data         V2Transaction `json:"data"`
 }
 
@@ -95,6 +128,13 @@ func (o *V2BulkElementResultCreateTransaction) GetResponseType() string {
 		return ""
 	}
 	return o.ResponseType
+}
+
+func (o *V2BulkElementResultCreateTransaction) GetLogID() int64 {
+	if o == nil {
+		return 0
+	}
+	return o.LogID
 }
 
 func (o *V2BulkElementResultCreateTransaction) GetData() V2Transaction {
@@ -115,11 +155,11 @@ const (
 )
 
 type V2BulkElementResult struct {
-	V2BulkElementResultCreateTransaction *V2BulkElementResultCreateTransaction
-	V2BulkElementResultAddMetadata       *V2BulkElementResultAddMetadata
-	V2BulkElementResultRevertTransaction *V2BulkElementResultRevertTransaction
-	V2BulkElementResultDeleteMetadata    *V2BulkElementResultDeleteMetadata
-	V2BulkElementResultError             *V2BulkElementResultError
+	V2BulkElementResultCreateTransaction *V2BulkElementResultCreateTransaction `queryParam:"inline"`
+	V2BulkElementResultAddMetadata       *V2BulkElementResultAddMetadata       `queryParam:"inline"`
+	V2BulkElementResultRevertTransaction *V2BulkElementResultRevertTransaction `queryParam:"inline"`
+	V2BulkElementResultDeleteMetadata    *V2BulkElementResultDeleteMetadata    `queryParam:"inline"`
+	V2BulkElementResultError             *V2BulkElementResultError             `queryParam:"inline"`
 
 	Type V2BulkElementResultType
 }
@@ -172,14 +212,14 @@ func CreateV2BulkElementResultDeleteMetadata(deleteMetadata V2BulkElementResultD
 	}
 }
 
-func CreateV2BulkElementResultError(error V2BulkElementResultError) V2BulkElementResult {
+func CreateV2BulkElementResultError(errorT V2BulkElementResultError) V2BulkElementResult {
 	typ := V2BulkElementResultTypeError
 
 	typStr := string(typ)
-	error.ResponseType = typStr
+	errorT.ResponseType = typStr
 
 	return V2BulkElementResult{
-		V2BulkElementResultError: &error,
+		V2BulkElementResultError: &errorT,
 		Type:                     typ,
 	}
 }

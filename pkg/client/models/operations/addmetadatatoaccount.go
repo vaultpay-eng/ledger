@@ -3,7 +3,7 @@
 package operations
 
 import (
-	"github.com/formancehq/stack/ledger/client/models/components"
+	"github.com/formancehq/ledger/pkg/client/models/components"
 )
 
 type AddMetadataToAccountRequest struct {
@@ -42,6 +42,7 @@ func (o *AddMetadataToAccountRequest) GetRequestBody() map[string]any {
 
 type AddMetadataToAccountResponse struct {
 	HTTPMeta components.HTTPMetadata `json:"-"`
+	Headers  map[string][]string
 }
 
 func (o *AddMetadataToAccountResponse) GetHTTPMeta() components.HTTPMetadata {
@@ -49,4 +50,11 @@ func (o *AddMetadataToAccountResponse) GetHTTPMeta() components.HTTPMetadata {
 		return components.HTTPMetadata{}
 	}
 	return o.HTTPMeta
+}
+
+func (o *AddMetadataToAccountResponse) GetHeaders() map[string][]string {
+	if o == nil {
+		return map[string][]string{}
+	}
+	return o.Headers
 }

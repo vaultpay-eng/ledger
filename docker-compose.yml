@@ -1,7 +1,8 @@
-version: '3.8'
 volumes:
-  postgres:
+  postgres: {}
+
 services:
+
   postgres:
     image: "postgres:16-alpine"
     healthcheck:
@@ -10,28 +11,100 @@ services:
       timeout: 5s
       retries: 5
     command:
-    - -c
-    - max_connections=200
+      - -c
+      - max_connections=200
+      - -c
+      - log_min_messages=info
     environment:
       POSTGRES_USER: "ledger"
       POSTGRES_PASSWORD: "ledger"
       POSTGRES_DB: "ledger"
       PGDATA: /data/postgres
     volumes:
-    - postgres:/data/postgres
+      - ${POSTGRES_DATA:-postgres}:/data/postgres
 
-  ledger:
-    image: golang:1.19-alpine
-    entrypoint: go run main.go serve
+  prometheus:
+    image: prom/prometheus:latest
+    restart: always
     volumes:
-    - .:/src
+      - ./deployments/docker-compose/prometheus.yaml:/etc/prometheus/prometheus.yml
     ports:
-    - 3068:3068
+      - "9090:9090"
+
+  otel:
+    image: "otel/opentelemetry-collector-contrib:0.81.0"
+    command: [ "--config=/etc/otel-collector-config.yaml" ]
+    volumes:
+      - ./deployments/docker-compose/otel-collector-config.yaml:/etc/otel-collector-config.yaml
+
+  jaeger:
+    image: jaegertracing/opentelemetry-all-in-one
+    ports:
+      - "16686:16686/tcp"
+
+  worker:
+    image: golang:1.25-alpine
+    entrypoint: go run main.go worker
+    volumes:
+      - .:/src
+      - ${GOPATH}:/go
     working_dir: /src
     depends_on:
       postgres:
         condition: service_healthy
+      jaeger:
+        condition: service_started
+      otel:
+        condition: service_started
     environment:
-      STORAGE_DRIVER: "postgres"
-      STORAGE_POSTGRES_CONN_STRING: "postgresql://ledger:ledger@postgres/ledger?sslmode=disable"
-      DEBUG: "true"
+      GOWORK: off
+      DEBUG: "${DEBUG:-false}"
+      OTEL_SERVICE_NAME: ledger
+      OTEL_METRICS_EXPORTER: "otlp"
+      OTEL_METRICS_EXPORTER_OTLP_ENDPOINT: otel:4317
+      OTEL_METRICS_EXPORTER_OTLP_INSECURE: "true"
+      OTEL_METRICS_KEEP_IN_MEMORY: "true"
+      OTEL_TRACES_EXPORTER: otlp
+      OTEL_TRACES_EXPORTER_OTLP_ENDPOINT: otel:4317
+      OTEL_TRACES_EXPORTER_OTLP_INSECURE: "true"
+      OTEL_TRACES_BATCH: "true"
+      POSTGRES_URI: "postgresql://ledger:ledger@postgres/ledger?sslmode=disable"
+      POSTGRES_MAX_OPEN_CONNS: "40"
+      POSTGRES_MAX_IDLE_CONNS: "40"
+      POSTGRES_CONN_MAX_IDLE_TIME: "5m"
+
+  ledger:
+    image: golang:1.25-alpine
+    entrypoint: go run main.go serve
+    volumes:
+      - .:/src
+      - ${GOPATH}:/go
+    ports:
+      - 3068:3068
+    working_dir: /src
+    depends_on:
+      postgres:
+        condition: service_healthy
+      jaeger:
+        condition: service_started
+      otel:
+        condition: service_started
+    environment:
+      GOWORK: off
+      DEBUG: "${DEBUG:-false}"
+      OTEL_SERVICE_NAME: ledger
+      OTEL_METRICS_EXPORTER: "otlp"
+      OTEL_METRICS_EXPORTER_OTLP_ENDPOINT: otel:4317
+      OTEL_METRICS_EXPORTER_OTLP_INSECURE: "true"
+      OTEL_METRICS_KEEP_IN_MEMORY: "true"
+      OTEL_TRACES_EXPORTER: otlp
+      OTEL_TRACES_EXPORTER_OTLP_ENDPOINT: otel:4317
+      OTEL_TRACES_EXPORTER_OTLP_INSECURE: "true"
+      OTEL_TRACES_BATCH: "true"
+      POSTGRES_URI: "postgresql://ledger:ledger@postgres/ledger?sslmode=disable"
+      POSTGRES_MAX_OPEN_CONNS: "40"
+      POSTGRES_MAX_IDLE_CONNS: "40"
+      POSTGRES_CONN_MAX_IDLE_TIME: "5m"
+      EXPERIMENTAL_FEATURES: "true"
+      AUTO_UPGRADE: "true"
+      BULK_PARALLEL: "10"

@@ -1,12 +1,16 @@
 # V2
 (*Ledger.V2*)
 
+## Overview
+
 ### Available Operations
 
-* [GetInfo](#getinfo) - Show server information
 * [ListLedgers](#listledgers) - List ledgers
 * [GetLedger](#getledger) - Get a ledger
 * [CreateLedger](#createledger) - Create a ledger
+* [InsertSchema](#insertschema) - Insert a schema for a ledger
+* [GetSchema](#getschema) - Get a schema for a ledger by version
+* [ListSchemas](#listschemas) - List all schemas for a ledger
 * [UpdateLedgerMetadata](#updateledgermetadata) - Update ledger metadata
 * [DeleteLedgerMetadata](#deleteledgermetadata) - Delete ledger metadata by key
 * [GetLedgerInfo](#getledgerinfo) - Get information about a ledger
@@ -29,57 +33,21 @@
 * [ListLogs](#listlogs) - List the logs from a ledger
 * [ImportLogs](#importlogs)
 * [ExportLogs](#exportlogs) - Export logs
-
-## GetInfo
-
-Show server information
-
-### Example Usage
-
-```go
-package main
-
-import(
-	"github.com/formancehq/stack/ledger/client/models/components"
-	"github.com/formancehq/stack/ledger/client"
-	"context"
-	"log"
-)
-
-func main() {
-    s := client.New(
-        client.WithSecurity(components.Security{
-            ClientID: "",
-            ClientSecret: "",
-        }),
-    )
-
-    ctx := context.Background()
-    res, err := s.Ledger.V2.GetInfo(ctx)
-    if err != nil {
-        log.Fatal(err)
-    }
-    if res.V2ConfigInfoResponse != nil {
-        // handle response
-    }
-}
-```
-
-### Parameters
-
-| Parameter                                                | Type                                                     | Required                                                 | Description                                              |
-| -------------------------------------------------------- | -------------------------------------------------------- | -------------------------------------------------------- | -------------------------------------------------------- |
-| `ctx`                                                    | [context.Context](https://pkg.go.dev/context#Context)    | :heavy_check_mark:                                       | The context to use for the request.                      |
-| `opts`                                                   | [][operations.Option](../../models/operations/option.md) | :heavy_minus_sign:                                       | The options for this request.                            |
-
-
-### Response
-
-**[*operations.V2GetInfoResponse](../../models/operations/v2getinforesponse.md), error**
-| Error Object              | Status Code               | Content Type              |
-| ------------------------- | ------------------------- | ------------------------- |
-| sdkerrors.V2ErrorResponse | default                   | application/json          |
-| sdkerrors.SDKError        | 4xx-5xx                   | */*                       |
+* [RunQuery](#runquery) - Run a query template
+* [ListExporters](#listexporters) - List exporters
+* [CreateExporter](#createexporter) - Create exporter
+* [GetExporterState](#getexporterstate) - Get exporter state
+* [UpdateExporter](#updateexporter) - Update exporter
+* [DeleteExporter](#deleteexporter) - Delete exporter
+* [DeleteBucket](#deletebucket) - Delete bucket
+* [RestoreBucket](#restorebucket) - Restore bucket
+* [ListPipelines](#listpipelines) - List pipelines
+* [CreatePipeline](#createpipeline) - Create pipeline
+* [GetPipelineState](#getpipelinestate) - Get pipeline state
+* [DeletePipeline](#deletepipeline) - Delete pipeline
+* [ResetPipeline](#resetpipeline) - Reset pipeline
+* [StartPipeline](#startpipeline) - Start pipeline
+* [StopPipeline](#stoppipeline) - Stop pipeline
 
 ## ListLedgers
 
@@ -91,24 +59,34 @@ List ledgers
 package main
 
 import(
-	"github.com/formancehq/stack/ledger/client/models/components"
-	"github.com/formancehq/stack/ledger/client"
 	"context"
+	"os"
+	"github.com/formancehq/ledger/pkg/client/models/components"
+	"github.com/formancehq/ledger/pkg/client"
+	"github.com/formancehq/ledger/pkg/client/models/operations"
 	"log"
 )
 
 func main() {
+    ctx := context.Background()
+
     s := client.New(
         client.WithSecurity(components.Security{
-            ClientID: "",
-            ClientSecret: "",
+            ClientID: client.String(os.Getenv("FORMANCE_CLIENT_ID")),
+            ClientSecret: client.String(os.Getenv("FORMANCE_CLIENT_SECRET")),
         }),
     )
-    var pageSize *int64 = client.Int64(100)
 
-    var cursor *string = client.String("aHR0cHM6Ly9nLnBhZ2UvTmVrby1SYW1lbj9zaGFyZQ==")
-    ctx := context.Background()
-    res, err := s.Ledger.V2.ListLedgers(ctx, pageSize, cursor)
+    res, err := s.Ledger.V2.ListLedgers(ctx, operations.V2ListLedgersRequest{
+        PageSize: client.Int64(100),
+        Cursor: client.String("aHR0cHM6Ly9nLnBhZ2UvTmVrby1SYW1lbj9zaGFyZQ=="),
+        Sort: client.String("id:desc"),
+        RequestBody: map[string]any{
+            "key": "<value>",
+            "key1": "<value>",
+            "key2": "<value>",
+        },
+    })
     if err != nil {
         log.Fatal(err)
     }
@@ -120,21 +98,22 @@ func main() {
 
 ### Parameters
 
-| Parameter                                                                                                                                                                                                                                                | Type                                                                                                                                                                                                                                                     | Required                                                                                                                                                                                                                                                 | Description                                                                                                                                                                                                                                              | Example                                                                                                                                                                                                                                                  |
-| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ctx`                                                                                                                                                                                                                                                    | [context.Context](https://pkg.go.dev/context#Context)                                                                                                                                                                                                    | :heavy_check_mark:                                                                                                                                                                                                                                       | The context to use for the request.                                                                                                                                                                                                                      |                                                                                                                                                                                                                                                          |
-| `pageSize`                                                                                                                                                                                                                                               | **int64*                                                                                                                                                                                                                                                 | :heavy_minus_sign:                                                                                                                                                                                                                                       | The maximum number of results to return per page.<br/>                                                                                                                                                                                                   | 100                                                                                                                                                                                                                                                      |
-| `cursor`                                                                                                                                                                                                                                                 | **string*                                                                                                                                                                                                                                                | :heavy_minus_sign:                                                                                                                                                                                                                                       | Parameter used in pagination requests. Maximum page size is set to 15.<br/>Set to the value of next for the next page of results.<br/>Set to the value of previous for the previous page of results.<br/>No other parameters can be set when this parameter is set.<br/> | aHR0cHM6Ly9nLnBhZ2UvTmVrby1SYW1lbj9zaGFyZQ==                                                                                                                                                                                                             |
-| `opts`                                                                                                                                                                                                                                                   | [][operations.Option](../../models/operations/option.md)                                                                                                                                                                                                 | :heavy_minus_sign:                                                                                                                                                                                                                                       | The options for this request.                                                                                                                                                                                                                            |                                                                                                                                                                                                                                                          |
-
+| Parameter                                                                          | Type                                                                               | Required                                                                           | Description                                                                        |
+| ---------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `ctx`                                                                              | [context.Context](https://pkg.go.dev/context#Context)                              | :heavy_check_mark:                                                                 | The context to use for the request.                                                |
+| `request`                                                                          | [operations.V2ListLedgersRequest](../../models/operations/v2listledgersrequest.md) | :heavy_check_mark:                                                                 | The request object to use for the request.                                         |
+| `opts`                                                                             | [][operations.Option](../../models/operations/option.md)                           | :heavy_minus_sign:                                                                 | The options for this request.                                                      |
 
 ### Response
 
 **[*operations.V2ListLedgersResponse](../../models/operations/v2listledgersresponse.md), error**
-| Error Object              | Status Code               | Content Type              |
+
+### Errors
+
+| Error Type                | Status Code               | Content Type              |
 | ------------------------- | ------------------------- | ------------------------- |
 | sdkerrors.V2ErrorResponse | default                   | application/json          |
-| sdkerrors.SDKError        | 4xx-5xx                   | */*                       |
+| sdkerrors.SDKError        | 4XX, 5XX                  | \*/\*                     |
 
 ## GetLedger
 
@@ -146,22 +125,27 @@ Get a ledger
 package main
 
 import(
-	"github.com/formancehq/stack/ledger/client/models/components"
-	"github.com/formancehq/stack/ledger/client"
 	"context"
+	"os"
+	"github.com/formancehq/ledger/pkg/client/models/components"
+	"github.com/formancehq/ledger/pkg/client"
+	"github.com/formancehq/ledger/pkg/client/models/operations"
 	"log"
 )
 
 func main() {
+    ctx := context.Background()
+
     s := client.New(
         client.WithSecurity(components.Security{
-            ClientID: "",
-            ClientSecret: "",
+            ClientID: client.String(os.Getenv("FORMANCE_CLIENT_ID")),
+            ClientSecret: client.String(os.Getenv("FORMANCE_CLIENT_SECRET")),
         }),
     )
-    var ledger string = "ledger001"
-    ctx := context.Background()
-    res, err := s.Ledger.V2.GetLedger(ctx, ledger)
+
+    res, err := s.Ledger.V2.GetLedger(ctx, operations.V2GetLedgerRequest{
+        Ledger: "ledger001",
+    })
     if err != nil {
         log.Fatal(err)
     }
@@ -173,20 +157,22 @@ func main() {
 
 ### Parameters
 
-| Parameter                                                | Type                                                     | Required                                                 | Description                                              | Example                                                  |
-| -------------------------------------------------------- | -------------------------------------------------------- | -------------------------------------------------------- | -------------------------------------------------------- | -------------------------------------------------------- |
-| `ctx`                                                    | [context.Context](https://pkg.go.dev/context#Context)    | :heavy_check_mark:                                       | The context to use for the request.                      |                                                          |
-| `ledger`                                                 | *string*                                                 | :heavy_check_mark:                                       | Name of the ledger.                                      | ledger001                                                |
-| `opts`                                                   | [][operations.Option](../../models/operations/option.md) | :heavy_minus_sign:                                       | The options for this request.                            |                                                          |
-
+| Parameter                                                                      | Type                                                                           | Required                                                                       | Description                                                                    |
+| ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------ |
+| `ctx`                                                                          | [context.Context](https://pkg.go.dev/context#Context)                          | :heavy_check_mark:                                                             | The context to use for the request.                                            |
+| `request`                                                                      | [operations.V2GetLedgerRequest](../../models/operations/v2getledgerrequest.md) | :heavy_check_mark:                                                             | The request object to use for the request.                                     |
+| `opts`                                                                         | [][operations.Option](../../models/operations/option.md)                       | :heavy_minus_sign:                                                             | The options for this request.                                                  |
 
 ### Response
 
 **[*operations.V2GetLedgerResponse](../../models/operations/v2getledgerresponse.md), error**
-| Error Object              | Status Code               | Content Type              |
+
+### Errors
+
+| Error Type                | Status Code               | Content Type              |
 | ------------------------- | ------------------------- | ------------------------- |
 | sdkerrors.V2ErrorResponse | default                   | application/json          |
-| sdkerrors.SDKError        | 4xx-5xx                   | */*                       |
+| sdkerrors.SDKError        | 4XX, 5XX                  | \*/\*                     |
 
 ## CreateLedger
 
@@ -198,28 +184,32 @@ Create a ledger
 package main
 
 import(
-	"github.com/formancehq/stack/ledger/client/models/components"
-	"github.com/formancehq/stack/ledger/client"
 	"context"
+	"os"
+	"github.com/formancehq/ledger/pkg/client/models/components"
+	"github.com/formancehq/ledger/pkg/client"
+	"github.com/formancehq/ledger/pkg/client/models/operations"
 	"log"
 )
 
 func main() {
+    ctx := context.Background()
+
     s := client.New(
         client.WithSecurity(components.Security{
-            ClientID: "",
-            ClientSecret: "",
+            ClientID: client.String(os.Getenv("FORMANCE_CLIENT_ID")),
+            ClientSecret: client.String(os.Getenv("FORMANCE_CLIENT_SECRET")),
         }),
     )
-    var ledger string = "ledger001"
 
-    var v2CreateLedgerRequest *components.V2CreateLedgerRequest = &components.V2CreateLedgerRequest{
-        Metadata: map[string]string{
-            "admin": "true",
+    res, err := s.Ledger.V2.CreateLedger(ctx, operations.V2CreateLedgerRequest{
+        Ledger: "ledger001",
+        V2CreateLedgerRequest: components.V2CreateLedgerRequest{
+            Metadata: map[string]string{
+                "admin": "true",
+            },
         },
-    }
-    ctx := context.Background()
-    res, err := s.Ledger.V2.CreateLedger(ctx, ledger, v2CreateLedgerRequest)
+    })
     if err != nil {
         log.Fatal(err)
     }
@@ -231,21 +221,223 @@ func main() {
 
 ### Parameters
 
-| Parameter                                                                             | Type                                                                                  | Required                                                                              | Description                                                                           | Example                                                                               |
-| ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| `ctx`                                                                                 | [context.Context](https://pkg.go.dev/context#Context)                                 | :heavy_check_mark:                                                                    | The context to use for the request.                                                   |                                                                                       |
-| `ledger`                                                                              | *string*                                                                              | :heavy_check_mark:                                                                    | Name of the ledger.                                                                   | ledger001                                                                             |
-| `v2CreateLedgerRequest`                                                               | [*components.V2CreateLedgerRequest](../../models/components/v2createledgerrequest.md) | :heavy_minus_sign:                                                                    | N/A                                                                                   |                                                                                       |
-| `opts`                                                                                | [][operations.Option](../../models/operations/option.md)                              | :heavy_minus_sign:                                                                    | The options for this request.                                                         |                                                                                       |
-
+| Parameter                                                                            | Type                                                                                 | Required                                                                             | Description                                                                          |
+| ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ |
+| `ctx`                                                                                | [context.Context](https://pkg.go.dev/context#Context)                                | :heavy_check_mark:                                                                   | The context to use for the request.                                                  |
+| `request`                                                                            | [operations.V2CreateLedgerRequest](../../models/operations/v2createledgerrequest.md) | :heavy_check_mark:                                                                   | The request object to use for the request.                                           |
+| `opts`                                                                               | [][operations.Option](../../models/operations/option.md)                             | :heavy_minus_sign:                                                                   | The options for this request.                                                        |
 
 ### Response
 
 **[*operations.V2CreateLedgerResponse](../../models/operations/v2createledgerresponse.md), error**
-| Error Object              | Status Code               | Content Type              |
+
+### Errors
+
+| Error Type                | Status Code               | Content Type              |
 | ------------------------- | ------------------------- | ------------------------- |
 | sdkerrors.V2ErrorResponse | default                   | application/json          |
-| sdkerrors.SDKError        | 4xx-5xx                   | */*                       |
+| sdkerrors.SDKError        | 4XX, 5XX                  | \*/\*                     |
+
+## InsertSchema
+
+Insert a schema for a ledger
+
+### Example Usage
+
+```go
+package main
+
+import(
+	"context"
+	"os"
+	"github.com/formancehq/ledger/pkg/client/models/components"
+	"github.com/formancehq/ledger/pkg/client"
+	"github.com/formancehq/ledger/pkg/client/models/operations"
+	"log"
+)
+
+func main() {
+    ctx := context.Background()
+
+    s := client.New(
+        client.WithSecurity(components.Security{
+            ClientID: client.String(os.Getenv("FORMANCE_CLIENT_ID")),
+            ClientSecret: client.String(os.Getenv("FORMANCE_CLIENT_SECRET")),
+        }),
+    )
+
+    res, err := s.Ledger.V2.InsertSchema(ctx, operations.V2InsertSchemaRequest{
+        Ledger: "ledger001",
+        Version: "v1.0.0",
+        V2SchemaData: components.V2SchemaData{
+            Chart: map[string]components.V2ChartSegment{
+                "users": components.V2ChartSegment{
+                    AdditionalProperties: map[string]components.V2ChartSegment{
+                        "$userID": components.V2ChartSegment{
+                            DotPattern: client.String("^[0-9]{16}$"),
+                        },
+                    },
+                },
+            },
+            Queries: map[string]components.V2QueryTemplate{
+                "key": components.V2QueryTemplate{
+                    Params: client.Pointer(components.CreateV2QueryParamsQueryTemplateAccountParams(
+                        components.QueryTemplateAccountParams{
+                            Resource: components.V2QueryParams1ResourceAccounts.ToPointer(),
+                            PageSize: client.Int64(100),
+                            Cursor: client.String("aHR0cHM6Ly9nLnBhZ2UvTmVrby1SYW1lbj9zaGFyZQ=="),
+                        },
+                    )),
+                },
+            },
+        },
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+    if res != nil {
+        // handle response
+    }
+}
+```
+
+### Parameters
+
+| Parameter                                                                            | Type                                                                                 | Required                                                                             | Description                                                                          |
+| ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ |
+| `ctx`                                                                                | [context.Context](https://pkg.go.dev/context#Context)                                | :heavy_check_mark:                                                                   | The context to use for the request.                                                  |
+| `request`                                                                            | [operations.V2InsertSchemaRequest](../../models/operations/v2insertschemarequest.md) | :heavy_check_mark:                                                                   | The request object to use for the request.                                           |
+| `opts`                                                                               | [][operations.Option](../../models/operations/option.md)                             | :heavy_minus_sign:                                                                   | The options for this request.                                                        |
+
+### Response
+
+**[*operations.V2InsertSchemaResponse](../../models/operations/v2insertschemaresponse.md), error**
+
+### Errors
+
+| Error Type                | Status Code               | Content Type              |
+| ------------------------- | ------------------------- | ------------------------- |
+| sdkerrors.V2ErrorResponse | default                   | application/json          |
+| sdkerrors.SDKError        | 4XX, 5XX                  | \*/\*                     |
+
+## GetSchema
+
+Get a schema for a ledger by version
+
+### Example Usage
+
+```go
+package main
+
+import(
+	"context"
+	"os"
+	"github.com/formancehq/ledger/pkg/client/models/components"
+	"github.com/formancehq/ledger/pkg/client"
+	"github.com/formancehq/ledger/pkg/client/models/operations"
+	"log"
+)
+
+func main() {
+    ctx := context.Background()
+
+    s := client.New(
+        client.WithSecurity(components.Security{
+            ClientID: client.String(os.Getenv("FORMANCE_CLIENT_ID")),
+            ClientSecret: client.String(os.Getenv("FORMANCE_CLIENT_SECRET")),
+        }),
+    )
+
+    res, err := s.Ledger.V2.GetSchema(ctx, operations.V2GetSchemaRequest{
+        Ledger: "ledger001",
+        Version: "v1.0.0",
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+    if res.V2SchemaResponse != nil {
+        // handle response
+    }
+}
+```
+
+### Parameters
+
+| Parameter                                                                      | Type                                                                           | Required                                                                       | Description                                                                    |
+| ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------ |
+| `ctx`                                                                          | [context.Context](https://pkg.go.dev/context#Context)                          | :heavy_check_mark:                                                             | The context to use for the request.                                            |
+| `request`                                                                      | [operations.V2GetSchemaRequest](../../models/operations/v2getschemarequest.md) | :heavy_check_mark:                                                             | The request object to use for the request.                                     |
+| `opts`                                                                         | [][operations.Option](../../models/operations/option.md)                       | :heavy_minus_sign:                                                             | The options for this request.                                                  |
+
+### Response
+
+**[*operations.V2GetSchemaResponse](../../models/operations/v2getschemaresponse.md), error**
+
+### Errors
+
+| Error Type                | Status Code               | Content Type              |
+| ------------------------- | ------------------------- | ------------------------- |
+| sdkerrors.V2ErrorResponse | default                   | application/json          |
+| sdkerrors.SDKError        | 4XX, 5XX                  | \*/\*                     |
+
+## ListSchemas
+
+List all schemas for a ledger
+
+### Example Usage
+
+```go
+package main
+
+import(
+	"context"
+	"os"
+	"github.com/formancehq/ledger/pkg/client/models/components"
+	"github.com/formancehq/ledger/pkg/client"
+	"github.com/formancehq/ledger/pkg/client/models/operations"
+	"log"
+)
+
+func main() {
+    ctx := context.Background()
+
+    s := client.New(
+        client.WithSecurity(components.Security{
+            ClientID: client.String(os.Getenv("FORMANCE_CLIENT_ID")),
+            ClientSecret: client.String(os.Getenv("FORMANCE_CLIENT_SECRET")),
+        }),
+    )
+
+    res, err := s.Ledger.V2.ListSchemas(ctx, operations.V2ListSchemasRequest{
+        Ledger: "ledger001",
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+    if res.V2SchemasCursorResponse != nil {
+        // handle response
+    }
+}
+```
+
+### Parameters
+
+| Parameter                                                                          | Type                                                                               | Required                                                                           | Description                                                                        |
+| ---------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `ctx`                                                                              | [context.Context](https://pkg.go.dev/context#Context)                              | :heavy_check_mark:                                                                 | The context to use for the request.                                                |
+| `request`                                                                          | [operations.V2ListSchemasRequest](../../models/operations/v2listschemasrequest.md) | :heavy_check_mark:                                                                 | The request object to use for the request.                                         |
+| `opts`                                                                             | [][operations.Option](../../models/operations/option.md)                           | :heavy_minus_sign:                                                                 | The options for this request.                                                      |
+
+### Response
+
+**[*operations.V2ListSchemasResponse](../../models/operations/v2listschemasresponse.md), error**
+
+### Errors
+
+| Error Type                | Status Code               | Content Type              |
+| ------------------------- | ------------------------- | ------------------------- |
+| sdkerrors.V2ErrorResponse | default                   | application/json          |
+| sdkerrors.SDKError        | 4XX, 5XX                  | \*/\*                     |
 
 ## UpdateLedgerMetadata
 
@@ -257,26 +449,30 @@ Update ledger metadata
 package main
 
 import(
-	"github.com/formancehq/stack/ledger/client/models/components"
-	"github.com/formancehq/stack/ledger/client"
 	"context"
+	"os"
+	"github.com/formancehq/ledger/pkg/client/models/components"
+	"github.com/formancehq/ledger/pkg/client"
+	"github.com/formancehq/ledger/pkg/client/models/operations"
 	"log"
 )
 
 func main() {
+    ctx := context.Background()
+
     s := client.New(
         client.WithSecurity(components.Security{
-            ClientID: "",
-            ClientSecret: "",
+            ClientID: client.String(os.Getenv("FORMANCE_CLIENT_ID")),
+            ClientSecret: client.String(os.Getenv("FORMANCE_CLIENT_SECRET")),
         }),
     )
-    var ledger string = "ledger001"
 
-    var requestBody map[string]string = map[string]string{
-        "admin": "true",
-    }
-    ctx := context.Background()
-    res, err := s.Ledger.V2.UpdateLedgerMetadata(ctx, ledger, requestBody)
+    res, err := s.Ledger.V2.UpdateLedgerMetadata(ctx, operations.V2UpdateLedgerMetadataRequest{
+        Ledger: "ledger001",
+        RequestBody: map[string]string{
+            "admin": "true",
+        },
+    })
     if err != nil {
         log.Fatal(err)
     }
@@ -288,21 +484,22 @@ func main() {
 
 ### Parameters
 
-| Parameter                                                | Type                                                     | Required                                                 | Description                                              | Example                                                  |
-| -------------------------------------------------------- | -------------------------------------------------------- | -------------------------------------------------------- | -------------------------------------------------------- | -------------------------------------------------------- |
-| `ctx`                                                    | [context.Context](https://pkg.go.dev/context#Context)    | :heavy_check_mark:                                       | The context to use for the request.                      |                                                          |
-| `ledger`                                                 | *string*                                                 | :heavy_check_mark:                                       | Name of the ledger.                                      | ledger001                                                |
-| `requestBody`                                            | map[string]*string*                                      | :heavy_minus_sign:                                       | N/A                                                      | {<br/>"admin": "true"<br/>}                              |
-| `opts`                                                   | [][operations.Option](../../models/operations/option.md) | :heavy_minus_sign:                                       | The options for this request.                            |                                                          |
-
+| Parameter                                                                                            | Type                                                                                                 | Required                                                                                             | Description                                                                                          |
+| ---------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `ctx`                                                                                                | [context.Context](https://pkg.go.dev/context#Context)                                                | :heavy_check_mark:                                                                                   | The context to use for the request.                                                                  |
+| `request`                                                                                            | [operations.V2UpdateLedgerMetadataRequest](../../models/operations/v2updateledgermetadatarequest.md) | :heavy_check_mark:                                                                                   | The request object to use for the request.                                                           |
+| `opts`                                                                                               | [][operations.Option](../../models/operations/option.md)                                             | :heavy_minus_sign:                                                                                   | The options for this request.                                                                        |
 
 ### Response
 
 **[*operations.V2UpdateLedgerMetadataResponse](../../models/operations/v2updateledgermetadataresponse.md), error**
-| Error Object              | Status Code               | Content Type              |
+
+### Errors
+
+| Error Type                | Status Code               | Content Type              |
 | ------------------------- | ------------------------- | ------------------------- |
 | sdkerrors.V2ErrorResponse | default                   | application/json          |
-| sdkerrors.SDKError        | 4xx-5xx                   | */*                       |
+| sdkerrors.SDKError        | 4XX, 5XX                  | \*/\*                     |
 
 ## DeleteLedgerMetadata
 
@@ -314,24 +511,28 @@ Delete ledger metadata by key
 package main
 
 import(
-	"github.com/formancehq/stack/ledger/client/models/components"
-	"github.com/formancehq/stack/ledger/client"
 	"context"
+	"os"
+	"github.com/formancehq/ledger/pkg/client/models/components"
+	"github.com/formancehq/ledger/pkg/client"
+	"github.com/formancehq/ledger/pkg/client/models/operations"
 	"log"
 )
 
 func main() {
+    ctx := context.Background()
+
     s := client.New(
         client.WithSecurity(components.Security{
-            ClientID: "",
-            ClientSecret: "",
+            ClientID: client.String(os.Getenv("FORMANCE_CLIENT_ID")),
+            ClientSecret: client.String(os.Getenv("FORMANCE_CLIENT_SECRET")),
         }),
     )
-    var ledger string = "ledger001"
 
-    var key string = "foo"
-    ctx := context.Background()
-    res, err := s.Ledger.V2.DeleteLedgerMetadata(ctx, ledger, key)
+    res, err := s.Ledger.V2.DeleteLedgerMetadata(ctx, operations.V2DeleteLedgerMetadataRequest{
+        Ledger: "ledger001",
+        Key: "foo",
+    })
     if err != nil {
         log.Fatal(err)
     }
@@ -343,21 +544,22 @@ func main() {
 
 ### Parameters
 
-| Parameter                                                | Type                                                     | Required                                                 | Description                                              | Example                                                  |
-| -------------------------------------------------------- | -------------------------------------------------------- | -------------------------------------------------------- | -------------------------------------------------------- | -------------------------------------------------------- |
-| `ctx`                                                    | [context.Context](https://pkg.go.dev/context#Context)    | :heavy_check_mark:                                       | The context to use for the request.                      |                                                          |
-| `ledger`                                                 | *string*                                                 | :heavy_check_mark:                                       | Name of the ledger.                                      | ledger001                                                |
-| `key`                                                    | *string*                                                 | :heavy_check_mark:                                       | Key to remove.                                           | foo                                                      |
-| `opts`                                                   | [][operations.Option](../../models/operations/option.md) | :heavy_minus_sign:                                       | The options for this request.                            |                                                          |
-
+| Parameter                                                                                            | Type                                                                                                 | Required                                                                                             | Description                                                                                          |
+| ---------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `ctx`                                                                                                | [context.Context](https://pkg.go.dev/context#Context)                                                | :heavy_check_mark:                                                                                   | The context to use for the request.                                                                  |
+| `request`                                                                                            | [operations.V2DeleteLedgerMetadataRequest](../../models/operations/v2deleteledgermetadatarequest.md) | :heavy_check_mark:                                                                                   | The request object to use for the request.                                                           |
+| `opts`                                                                                               | [][operations.Option](../../models/operations/option.md)                                             | :heavy_minus_sign:                                                                                   | The options for this request.                                                                        |
 
 ### Response
 
 **[*operations.V2DeleteLedgerMetadataResponse](../../models/operations/v2deleteledgermetadataresponse.md), error**
-| Error Object              | Status Code               | Content Type              |
+
+### Errors
+
+| Error Type                | Status Code               | Content Type              |
 | ------------------------- | ------------------------- | ------------------------- |
 | sdkerrors.V2ErrorResponse | default                   | application/json          |
-| sdkerrors.SDKError        | 4xx-5xx                   | */*                       |
+| sdkerrors.SDKError        | 4XX, 5XX                  | \*/\*                     |
 
 ## GetLedgerInfo
 
@@ -369,22 +571,27 @@ Get information about a ledger
 package main
 
 import(
-	"github.com/formancehq/stack/ledger/client/models/components"
-	"github.com/formancehq/stack/ledger/client"
 	"context"
+	"os"
+	"github.com/formancehq/ledger/pkg/client/models/components"
+	"github.com/formancehq/ledger/pkg/client"
+	"github.com/formancehq/ledger/pkg/client/models/operations"
 	"log"
 )
 
 func main() {
+    ctx := context.Background()
+
     s := client.New(
         client.WithSecurity(components.Security{
-            ClientID: "",
-            ClientSecret: "",
+            ClientID: client.String(os.Getenv("FORMANCE_CLIENT_ID")),
+            ClientSecret: client.String(os.Getenv("FORMANCE_CLIENT_SECRET")),
         }),
     )
-    var ledger string = "ledger001"
-    ctx := context.Background()
-    res, err := s.Ledger.V2.GetLedgerInfo(ctx, ledger)
+
+    res, err := s.Ledger.V2.GetLedgerInfo(ctx, operations.V2GetLedgerInfoRequest{
+        Ledger: "ledger001",
+    })
     if err != nil {
         log.Fatal(err)
     }
@@ -396,20 +603,22 @@ func main() {
 
 ### Parameters
 
-| Parameter                                                | Type                                                     | Required                                                 | Description                                              | Example                                                  |
-| -------------------------------------------------------- | -------------------------------------------------------- | -------------------------------------------------------- | -------------------------------------------------------- | -------------------------------------------------------- |
-| `ctx`                                                    | [context.Context](https://pkg.go.dev/context#Context)    | :heavy_check_mark:                                       | The context to use for the request.                      |                                                          |
-| `ledger`                                                 | *string*                                                 | :heavy_check_mark:                                       | Name of the ledger.                                      | ledger001                                                |
-| `opts`                                                   | [][operations.Option](../../models/operations/option.md) | :heavy_minus_sign:                                       | The options for this request.                            |                                                          |
-
+| Parameter                                                                              | Type                                                                                   | Required                                                                               | Description                                                                            |
+| -------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `ctx`                                                                                  | [context.Context](https://pkg.go.dev/context#Context)                                  | :heavy_check_mark:                                                                     | The context to use for the request.                                                    |
+| `request`                                                                              | [operations.V2GetLedgerInfoRequest](../../models/operations/v2getledgerinforequest.md) | :heavy_check_mark:                                                                     | The request object to use for the request.                                             |
+| `opts`                                                                                 | [][operations.Option](../../models/operations/option.md)                               | :heavy_minus_sign:                                                                     | The options for this request.                                                          |
 
 ### Response
 
 **[*operations.V2GetLedgerInfoResponse](../../models/operations/v2getledgerinforesponse.md), error**
-| Error Object              | Status Code               | Content Type              |
+
+### Errors
+
+| Error Type                | Status Code               | Content Type              |
 | ------------------------- | ------------------------- | ------------------------- |
 | sdkerrors.V2ErrorResponse | default                   | application/json          |
-| sdkerrors.SDKError        | 4xx-5xx                   | */*                       |
+| sdkerrors.SDKError        | 4XX, 5XX                  | \*/\*                     |
 
 ## CreateBulk
 
@@ -421,58 +630,38 @@ Bulk request
 package main
 
 import(
-	"github.com/formancehq/stack/ledger/client/models/components"
-	"github.com/formancehq/stack/ledger/client"
-	"math/big"
 	"context"
+	"os"
+	"github.com/formancehq/ledger/pkg/client/models/components"
+	"github.com/formancehq/ledger/pkg/client"
+	"github.com/formancehq/ledger/pkg/client/models/operations"
 	"log"
 )
 
 func main() {
+    ctx := context.Background()
+
     s := client.New(
         client.WithSecurity(components.Security{
-            ClientID: "",
-            ClientSecret: "",
+            ClientID: client.String(os.Getenv("FORMANCE_CLIENT_ID")),
+            ClientSecret: client.String(os.Getenv("FORMANCE_CLIENT_SECRET")),
         }),
     )
-    var ledger string = "ledger001"
 
-    var requestBody []components.V2BulkElement = []components.V2BulkElement{
-        components.CreateV2BulkElementV2BulkElementCreateTransaction(
-            components.V2BulkElementCreateTransaction{
-                Action: "<value>",
-                Data: &components.V2PostTransaction{
-                    Postings: []components.V2Posting{
-                        components.V2Posting{
-                            Amount: big.NewInt(100),
-                            Asset: "COIN",
-                            Destination: "users:002",
-                            Source: "users:001",
-                        },
-                    },
-                    Script: &components.V2PostTransactionScript{
-                        Plain: "vars {
-                    account $user
-                    }
-                    send [COIN 10] (
-                    	source = @world
-                    	destination = $user
-                    )
-                    ",
-                        Vars: map[string]any{
-                            "user": "users:042",
-                        },
-                    },
-                    Reference: client.String("ref:001"),
-                    Metadata: map[string]string{
-                        "admin": "true",
-                    },
+    res, err := s.Ledger.V2.CreateBulk(ctx, operations.V2CreateBulkRequest{
+        Ledger: "ledger001",
+        ContinueOnFailure: client.Bool(true),
+        Atomic: client.Bool(true),
+        Parallel: client.Bool(true),
+        SchemaVersion: client.String("v1.0.0"),
+        RequestBody: []components.V2BulkElement{
+            components.CreateV2BulkElementDeleteMetadata(
+                components.V2BulkElementDeleteMetadata{
+                    Action: "DELETE_METADATA",
                 },
-            },
-        ),
-    }
-    ctx := context.Background()
-    res, err := s.Ledger.V2.CreateBulk(ctx, ledger, requestBody)
+            ),
+        },
+    })
     if err != nil {
         log.Fatal(err)
     }
@@ -484,21 +673,22 @@ func main() {
 
 ### Parameters
 
-| Parameter                                                              | Type                                                                   | Required                                                               | Description                                                            | Example                                                                |
-| ---------------------------------------------------------------------- | ---------------------------------------------------------------------- | ---------------------------------------------------------------------- | ---------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| `ctx`                                                                  | [context.Context](https://pkg.go.dev/context#Context)                  | :heavy_check_mark:                                                     | The context to use for the request.                                    |                                                                        |
-| `ledger`                                                               | *string*                                                               | :heavy_check_mark:                                                     | Name of the ledger.                                                    | ledger001                                                              |
-| `requestBody`                                                          | [][components.V2BulkElement](../../models/components/v2bulkelement.md) | :heavy_minus_sign:                                                     | N/A                                                                    |                                                                        |
-| `opts`                                                                 | [][operations.Option](../../models/operations/option.md)               | :heavy_minus_sign:                                                     | The options for this request.                                          |                                                                        |
-
+| Parameter                                                                        | Type                                                                             | Required                                                                         | Description                                                                      |
+| -------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `ctx`                                                                            | [context.Context](https://pkg.go.dev/context#Context)                            | :heavy_check_mark:                                                               | The context to use for the request.                                              |
+| `request`                                                                        | [operations.V2CreateBulkRequest](../../models/operations/v2createbulkrequest.md) | :heavy_check_mark:                                                               | The request object to use for the request.                                       |
+| `opts`                                                                           | [][operations.Option](../../models/operations/option.md)                         | :heavy_minus_sign:                                                               | The options for this request.                                                    |
 
 ### Response
 
 **[*operations.V2CreateBulkResponse](../../models/operations/v2createbulkresponse.md), error**
-| Error Object              | Status Code               | Content Type              |
+
+### Errors
+
+| Error Type                | Status Code               | Content Type              |
 | ------------------------- | ------------------------- | ------------------------- |
 | sdkerrors.V2ErrorResponse | default                   | application/json          |
-| sdkerrors.SDKError        | 4xx-5xx                   | */*                       |
+| sdkerrors.SDKError        | 4XX, 5XX                  | \*/\*                     |
 
 ## CountAccounts
 
@@ -510,23 +700,31 @@ Count the accounts from a ledger
 package main
 
 import(
-	"github.com/formancehq/stack/ledger/client/models/components"
-	"github.com/formancehq/stack/ledger/client"
-	"time"
 	"context"
+	"os"
+	"github.com/formancehq/ledger/pkg/client/models/components"
+	"github.com/formancehq/ledger/pkg/client"
+	"github.com/formancehq/ledger/pkg/client/models/operations"
 	"log"
 )
 
 func main() {
+    ctx := context.Background()
+
     s := client.New(
         client.WithSecurity(components.Security{
-            ClientID: "",
-            ClientSecret: "",
+            ClientID: client.String(os.Getenv("FORMANCE_CLIENT_ID")),
+            ClientSecret: client.String(os.Getenv("FORMANCE_CLIENT_SECRET")),
         }),
     )
-    var ledger string = "ledger001"
-    ctx := context.Background()
-    res, err := s.Ledger.V2.CountAccounts(ctx, ledger, nil, nil)
+
+    res, err := s.Ledger.V2.CountAccounts(ctx, operations.V2CountAccountsRequest{
+        Ledger: "ledger001",
+        RequestBody: map[string]any{
+            "key": "<value>",
+            "key1": "<value>",
+        },
+    })
     if err != nil {
         log.Fatal(err)
     }
@@ -538,22 +736,22 @@ func main() {
 
 ### Parameters
 
-| Parameter                                                | Type                                                     | Required                                                 | Description                                              | Example                                                  |
-| -------------------------------------------------------- | -------------------------------------------------------- | -------------------------------------------------------- | -------------------------------------------------------- | -------------------------------------------------------- |
-| `ctx`                                                    | [context.Context](https://pkg.go.dev/context#Context)    | :heavy_check_mark:                                       | The context to use for the request.                      |                                                          |
-| `ledger`                                                 | *string*                                                 | :heavy_check_mark:                                       | Name of the ledger.                                      | ledger001                                                |
-| `pit`                                                    | [*time.Time](https://pkg.go.dev/time#Time)               | :heavy_minus_sign:                                       | N/A                                                      |                                                          |
-| `requestBody`                                            | map[string]*any*                                         | :heavy_minus_sign:                                       | N/A                                                      |                                                          |
-| `opts`                                                   | [][operations.Option](../../models/operations/option.md) | :heavy_minus_sign:                                       | The options for this request.                            |                                                          |
-
+| Parameter                                                                              | Type                                                                                   | Required                                                                               | Description                                                                            |
+| -------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `ctx`                                                                                  | [context.Context](https://pkg.go.dev/context#Context)                                  | :heavy_check_mark:                                                                     | The context to use for the request.                                                    |
+| `request`                                                                              | [operations.V2CountAccountsRequest](../../models/operations/v2countaccountsrequest.md) | :heavy_check_mark:                                                                     | The request object to use for the request.                                             |
+| `opts`                                                                                 | [][operations.Option](../../models/operations/option.md)                               | :heavy_minus_sign:                                                                     | The options for this request.                                                          |
 
 ### Response
 
 **[*operations.V2CountAccountsResponse](../../models/operations/v2countaccountsresponse.md), error**
-| Error Object              | Status Code               | Content Type              |
+
+### Errors
+
+| Error Type                | Status Code               | Content Type              |
 | ------------------------- | ------------------------- | ------------------------- |
 | sdkerrors.V2ErrorResponse | default                   | application/json          |
-| sdkerrors.SDKError        | 4xx-5xx                   | */*                       |
+| sdkerrors.SDKError        | 4XX, 5XX                  | \*/\*                     |
 
 ## ListAccounts
 
@@ -565,27 +763,33 @@ List accounts from a ledger, sorted by address in descending order.
 package main
 
 import(
-	"github.com/formancehq/stack/ledger/client/models/components"
-	"github.com/formancehq/stack/ledger/client"
-	"github.com/formancehq/stack/ledger/client/models/operations"
 	"context"
+	"os"
+	"github.com/formancehq/ledger/pkg/client/models/components"
+	"github.com/formancehq/ledger/pkg/client"
+	"github.com/formancehq/ledger/pkg/client/models/operations"
 	"log"
 )
 
 func main() {
+    ctx := context.Background()
+
     s := client.New(
         client.WithSecurity(components.Security{
-            ClientID: "",
-            ClientSecret: "",
+            ClientID: client.String(os.Getenv("FORMANCE_CLIENT_ID")),
+            ClientSecret: client.String(os.Getenv("FORMANCE_CLIENT_SECRET")),
         }),
     )
-    request := operations.V2ListAccountsRequest{
+
+    res, err := s.Ledger.V2.ListAccounts(ctx, operations.V2ListAccountsRequest{
         Ledger: "ledger001",
         PageSize: client.Int64(100),
         Cursor: client.String("aHR0cHM6Ly9nLnBhZ2UvTmVrby1SYW1lbj9zaGFyZQ=="),
-    }
-    ctx := context.Background()
-    res, err := s.Ledger.V2.ListAccounts(ctx, request)
+        Sort: client.String("id:desc"),
+        RequestBody: map[string]any{
+
+        },
+    })
     if err != nil {
         log.Fatal(err)
     }
@@ -603,14 +807,16 @@ func main() {
 | `request`                                                                            | [operations.V2ListAccountsRequest](../../models/operations/v2listaccountsrequest.md) | :heavy_check_mark:                                                                   | The request object to use for the request.                                           |
 | `opts`                                                                               | [][operations.Option](../../models/operations/option.md)                             | :heavy_minus_sign:                                                                   | The options for this request.                                                        |
 
-
 ### Response
 
 **[*operations.V2ListAccountsResponse](../../models/operations/v2listaccountsresponse.md), error**
-| Error Object              | Status Code               | Content Type              |
+
+### Errors
+
+| Error Type                | Status Code               | Content Type              |
 | ------------------------- | ------------------------- | ------------------------- |
 | sdkerrors.V2ErrorResponse | default                   | application/json          |
-| sdkerrors.SDKError        | 4xx-5xx                   | */*                       |
+| sdkerrors.SDKError        | 4XX, 5XX                  | \*/\*                     |
 
 ## GetAccount
 
@@ -622,25 +828,28 @@ Get account by its address
 package main
 
 import(
-	"github.com/formancehq/stack/ledger/client/models/components"
-	"github.com/formancehq/stack/ledger/client"
-	"time"
 	"context"
+	"os"
+	"github.com/formancehq/ledger/pkg/client/models/components"
+	"github.com/formancehq/ledger/pkg/client"
+	"github.com/formancehq/ledger/pkg/client/models/operations"
 	"log"
 )
 
 func main() {
+    ctx := context.Background()
+
     s := client.New(
         client.WithSecurity(components.Security{
-            ClientID: "",
-            ClientSecret: "",
+            ClientID: client.String(os.Getenv("FORMANCE_CLIENT_ID")),
+            ClientSecret: client.String(os.Getenv("FORMANCE_CLIENT_SECRET")),
         }),
     )
-    var ledger string = "ledger001"
 
-    var address string = "users:001"
-    ctx := context.Background()
-    res, err := s.Ledger.V2.GetAccount(ctx, ledger, address, nil, nil)
+    res, err := s.Ledger.V2.GetAccount(ctx, operations.V2GetAccountRequest{
+        Ledger: "ledger001",
+        Address: "users:001",
+    })
     if err != nil {
         log.Fatal(err)
     }
@@ -652,23 +861,22 @@ func main() {
 
 ### Parameters
 
-| Parameter                                                                                                    | Type                                                                                                         | Required                                                                                                     | Description                                                                                                  | Example                                                                                                      |
-| ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------ |
-| `ctx`                                                                                                        | [context.Context](https://pkg.go.dev/context#Context)                                                        | :heavy_check_mark:                                                                                           | The context to use for the request.                                                                          |                                                                                                              |
-| `ledger`                                                                                                     | *string*                                                                                                     | :heavy_check_mark:                                                                                           | Name of the ledger.                                                                                          | ledger001                                                                                                    |
-| `address`                                                                                                    | *string*                                                                                                     | :heavy_check_mark:                                                                                           | Exact address of the account. It must match the following regular expressions pattern:<br/>```<br/>^\w+(:\w+)*$<br/>```<br/> | users:001                                                                                                    |
-| `expand`                                                                                                     | **string*                                                                                                    | :heavy_minus_sign:                                                                                           | N/A                                                                                                          |                                                                                                              |
-| `pit`                                                                                                        | [*time.Time](https://pkg.go.dev/time#Time)                                                                   | :heavy_minus_sign:                                                                                           | N/A                                                                                                          |                                                                                                              |
-| `opts`                                                                                                       | [][operations.Option](../../models/operations/option.md)                                                     | :heavy_minus_sign:                                                                                           | The options for this request.                                                                                |                                                                                                              |
-
+| Parameter                                                                        | Type                                                                             | Required                                                                         | Description                                                                      |
+| -------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `ctx`                                                                            | [context.Context](https://pkg.go.dev/context#Context)                            | :heavy_check_mark:                                                               | The context to use for the request.                                              |
+| `request`                                                                        | [operations.V2GetAccountRequest](../../models/operations/v2getaccountrequest.md) | :heavy_check_mark:                                                               | The request object to use for the request.                                       |
+| `opts`                                                                           | [][operations.Option](../../models/operations/option.md)                         | :heavy_minus_sign:                                                               | The options for this request.                                                    |
 
 ### Response
 
 **[*operations.V2GetAccountResponse](../../models/operations/v2getaccountresponse.md), error**
-| Error Object              | Status Code               | Content Type              |
+
+### Errors
+
+| Error Type                | Status Code               | Content Type              |
 | ------------------------- | ------------------------- | ------------------------- |
 | sdkerrors.V2ErrorResponse | default                   | application/json          |
-| sdkerrors.SDKError        | 4xx-5xx                   | */*                       |
+| sdkerrors.SDKError        | 4XX, 5XX                  | \*/\*                     |
 
 ## AddMetadataToAccount
 
@@ -680,30 +888,33 @@ Add metadata to an account
 package main
 
 import(
-	"github.com/formancehq/stack/ledger/client/models/components"
-	"github.com/formancehq/stack/ledger/client"
-	"github.com/formancehq/stack/ledger/client/models/operations"
 	"context"
+	"os"
+	"github.com/formancehq/ledger/pkg/client/models/components"
+	"github.com/formancehq/ledger/pkg/client"
+	"github.com/formancehq/ledger/pkg/client/models/operations"
 	"log"
 )
 
 func main() {
+    ctx := context.Background()
+
     s := client.New(
         client.WithSecurity(components.Security{
-            ClientID: "",
-            ClientSecret: "",
+            ClientID: client.String(os.Getenv("FORMANCE_CLIENT_ID")),
+            ClientSecret: client.String(os.Getenv("FORMANCE_CLIENT_SECRET")),
         }),
     )
-    request := operations.V2AddMetadataToAccountRequest{
+
+    res, err := s.Ledger.V2.AddMetadataToAccount(ctx, operations.V2AddMetadataToAccountRequest{
         Ledger: "ledger001",
         Address: "users:001",
         DryRun: client.Bool(true),
+        SchemaVersion: client.String("v1.0.0"),
         RequestBody: map[string]string{
             "admin": "true",
         },
-    }
-    ctx := context.Background()
-    res, err := s.Ledger.V2.AddMetadataToAccount(ctx, request)
+    })
     if err != nil {
         log.Fatal(err)
     }
@@ -721,14 +932,16 @@ func main() {
 | `request`                                                                                            | [operations.V2AddMetadataToAccountRequest](../../models/operations/v2addmetadatatoaccountrequest.md) | :heavy_check_mark:                                                                                   | The request object to use for the request.                                                           |
 | `opts`                                                                                               | [][operations.Option](../../models/operations/option.md)                                             | :heavy_minus_sign:                                                                                   | The options for this request.                                                                        |
 
-
 ### Response
 
 **[*operations.V2AddMetadataToAccountResponse](../../models/operations/v2addmetadatatoaccountresponse.md), error**
-| Error Object              | Status Code               | Content Type              |
+
+### Errors
+
+| Error Type                | Status Code               | Content Type              |
 | ------------------------- | ------------------------- | ------------------------- |
 | sdkerrors.V2ErrorResponse | default                   | application/json          |
-| sdkerrors.SDKError        | 4xx-5xx                   | */*                       |
+| sdkerrors.SDKError        | 4XX, 5XX                  | \*/\*                     |
 
 ## DeleteAccountMetadata
 
@@ -740,26 +953,29 @@ Delete metadata by key
 package main
 
 import(
-	"github.com/formancehq/stack/ledger/client/models/components"
-	"github.com/formancehq/stack/ledger/client"
 	"context"
+	"os"
+	"github.com/formancehq/ledger/pkg/client/models/components"
+	"github.com/formancehq/ledger/pkg/client"
+	"github.com/formancehq/ledger/pkg/client/models/operations"
 	"log"
 )
 
 func main() {
+    ctx := context.Background()
+
     s := client.New(
         client.WithSecurity(components.Security{
-            ClientID: "",
-            ClientSecret: "",
+            ClientID: client.String(os.Getenv("FORMANCE_CLIENT_ID")),
+            ClientSecret: client.String(os.Getenv("FORMANCE_CLIENT_SECRET")),
         }),
     )
-    var ledger string = "ledger001"
 
-    var address string = "<value>"
-
-    var key string = "foo"
-    ctx := context.Background()
-    res, err := s.Ledger.V2.DeleteAccountMetadata(ctx, ledger, address, key)
+    res, err := s.Ledger.V2.DeleteAccountMetadata(ctx, operations.V2DeleteAccountMetadataRequest{
+        Ledger: "ledger001",
+        Address: "6753 S Washington Street",
+        Key: "foo",
+    })
     if err != nil {
         log.Fatal(err)
     }
@@ -771,22 +987,22 @@ func main() {
 
 ### Parameters
 
-| Parameter                                                | Type                                                     | Required                                                 | Description                                              | Example                                                  |
-| -------------------------------------------------------- | -------------------------------------------------------- | -------------------------------------------------------- | -------------------------------------------------------- | -------------------------------------------------------- |
-| `ctx`                                                    | [context.Context](https://pkg.go.dev/context#Context)    | :heavy_check_mark:                                       | The context to use for the request.                      |                                                          |
-| `ledger`                                                 | *string*                                                 | :heavy_check_mark:                                       | Name of the ledger.                                      | ledger001                                                |
-| `address`                                                | *string*                                                 | :heavy_check_mark:                                       | Account address                                          |                                                          |
-| `key`                                                    | *string*                                                 | :heavy_check_mark:                                       | The key to remove.                                       | foo                                                      |
-| `opts`                                                   | [][operations.Option](../../models/operations/option.md) | :heavy_minus_sign:                                       | The options for this request.                            |                                                          |
-
+| Parameter                                                                                              | Type                                                                                                   | Required                                                                                               | Description                                                                                            |
+| ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------ |
+| `ctx`                                                                                                  | [context.Context](https://pkg.go.dev/context#Context)                                                  | :heavy_check_mark:                                                                                     | The context to use for the request.                                                                    |
+| `request`                                                                                              | [operations.V2DeleteAccountMetadataRequest](../../models/operations/v2deleteaccountmetadatarequest.md) | :heavy_check_mark:                                                                                     | The request object to use for the request.                                                             |
+| `opts`                                                                                                 | [][operations.Option](../../models/operations/option.md)                                               | :heavy_minus_sign:                                                                                     | The options for this request.                                                                          |
 
 ### Response
 
 **[*operations.V2DeleteAccountMetadataResponse](../../models/operations/v2deleteaccountmetadataresponse.md), error**
-| Error Object              | Status Code               | Content Type              |
+
+### Errors
+
+| Error Type                | Status Code               | Content Type              |
 | ------------------------- | ------------------------- | ------------------------- |
 | sdkerrors.V2ErrorResponse | default                   | application/json          |
-| sdkerrors.SDKError        | 4xx-5xx                   | */*                       |
+| sdkerrors.SDKError        | 4XX, 5XX                  | \*/\*                     |
 
 ## ReadStats
 
@@ -799,22 +1015,27 @@ Get statistics from a ledger. (aggregate metrics on accounts and transactions)
 package main
 
 import(
-	"github.com/formancehq/stack/ledger/client/models/components"
-	"github.com/formancehq/stack/ledger/client"
 	"context"
+	"os"
+	"github.com/formancehq/ledger/pkg/client/models/components"
+	"github.com/formancehq/ledger/pkg/client"
+	"github.com/formancehq/ledger/pkg/client/models/operations"
 	"log"
 )
 
 func main() {
+    ctx := context.Background()
+
     s := client.New(
         client.WithSecurity(components.Security{
-            ClientID: "",
-            ClientSecret: "",
+            ClientID: client.String(os.Getenv("FORMANCE_CLIENT_ID")),
+            ClientSecret: client.String(os.Getenv("FORMANCE_CLIENT_SECRET")),
         }),
     )
-    var ledger string = "ledger001"
-    ctx := context.Background()
-    res, err := s.Ledger.V2.ReadStats(ctx, ledger)
+
+    res, err := s.Ledger.V2.ReadStats(ctx, operations.V2ReadStatsRequest{
+        Ledger: "ledger001",
+    })
     if err != nil {
         log.Fatal(err)
     }
@@ -826,20 +1047,22 @@ func main() {
 
 ### Parameters
 
-| Parameter                                                | Type                                                     | Required                                                 | Description                                              | Example                                                  |
-| -------------------------------------------------------- | -------------------------------------------------------- | -------------------------------------------------------- | -------------------------------------------------------- | -------------------------------------------------------- |
-| `ctx`                                                    | [context.Context](https://pkg.go.dev/context#Context)    | :heavy_check_mark:                                       | The context to use for the request.                      |                                                          |
-| `ledger`                                                 | *string*                                                 | :heavy_check_mark:                                       | name of the ledger                                       | ledger001                                                |
-| `opts`                                                   | [][operations.Option](../../models/operations/option.md) | :heavy_minus_sign:                                       | The options for this request.                            |                                                          |
-
+| Parameter                                                                      | Type                                                                           | Required                                                                       | Description                                                                    |
+| ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------ |
+| `ctx`                                                                          | [context.Context](https://pkg.go.dev/context#Context)                          | :heavy_check_mark:                                                             | The context to use for the request.                                            |
+| `request`                                                                      | [operations.V2ReadStatsRequest](../../models/operations/v2readstatsrequest.md) | :heavy_check_mark:                                                             | The request object to use for the request.                                     |
+| `opts`                                                                         | [][operations.Option](../../models/operations/option.md)                       | :heavy_minus_sign:                                                             | The options for this request.                                                  |
 
 ### Response
 
 **[*operations.V2ReadStatsResponse](../../models/operations/v2readstatsresponse.md), error**
-| Error Object              | Status Code               | Content Type              |
+
+### Errors
+
+| Error Type                | Status Code               | Content Type              |
 | ------------------------- | ------------------------- | ------------------------- |
 | sdkerrors.V2ErrorResponse | default                   | application/json          |
-| sdkerrors.SDKError        | 4xx-5xx                   | */*                       |
+| sdkerrors.SDKError        | 4XX, 5XX                  | \*/\*                     |
 
 ## CountTransactions
 
@@ -851,23 +1074,30 @@ Count the transactions from a ledger
 package main
 
 import(
-	"github.com/formancehq/stack/ledger/client/models/components"
-	"github.com/formancehq/stack/ledger/client"
-	"time"
 	"context"
+	"os"
+	"github.com/formancehq/ledger/pkg/client/models/components"
+	"github.com/formancehq/ledger/pkg/client"
+	"github.com/formancehq/ledger/pkg/client/models/operations"
 	"log"
 )
 
 func main() {
+    ctx := context.Background()
+
     s := client.New(
         client.WithSecurity(components.Security{
-            ClientID: "",
-            ClientSecret: "",
+            ClientID: client.String(os.Getenv("FORMANCE_CLIENT_ID")),
+            ClientSecret: client.String(os.Getenv("FORMANCE_CLIENT_SECRET")),
         }),
     )
-    var ledger string = "ledger001"
-    ctx := context.Background()
-    res, err := s.Ledger.V2.CountTransactions(ctx, ledger, nil, nil)
+
+    res, err := s.Ledger.V2.CountTransactions(ctx, operations.V2CountTransactionsRequest{
+        Ledger: "ledger001",
+        RequestBody: map[string]any{
+            "key": "<value>",
+        },
+    })
     if err != nil {
         log.Fatal(err)
     }
@@ -879,22 +1109,22 @@ func main() {
 
 ### Parameters
 
-| Parameter                                                | Type                                                     | Required                                                 | Description                                              | Example                                                  |
-| -------------------------------------------------------- | -------------------------------------------------------- | -------------------------------------------------------- | -------------------------------------------------------- | -------------------------------------------------------- |
-| `ctx`                                                    | [context.Context](https://pkg.go.dev/context#Context)    | :heavy_check_mark:                                       | The context to use for the request.                      |                                                          |
-| `ledger`                                                 | *string*                                                 | :heavy_check_mark:                                       | Name of the ledger.                                      | ledger001                                                |
-| `pit`                                                    | [*time.Time](https://pkg.go.dev/time#Time)               | :heavy_minus_sign:                                       | N/A                                                      |                                                          |
-| `requestBody`                                            | map[string]*any*                                         | :heavy_minus_sign:                                       | N/A                                                      |                                                          |
-| `opts`                                                   | [][operations.Option](../../models/operations/option.md) | :heavy_minus_sign:                                       | The options for this request.                            |                                                          |
-
+| Parameter                                                                                      | Type                                                                                           | Required                                                                                       | Description                                                                                    |
+| ---------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `ctx`                                                                                          | [context.Context](https://pkg.go.dev/context#Context)                                          | :heavy_check_mark:                                                                             | The context to use for the request.                                                            |
+| `request`                                                                                      | [operations.V2CountTransactionsRequest](../../models/operations/v2counttransactionsrequest.md) | :heavy_check_mark:                                                                             | The request object to use for the request.                                                     |
+| `opts`                                                                                         | [][operations.Option](../../models/operations/option.md)                                       | :heavy_minus_sign:                                                                             | The options for this request.                                                                  |
 
 ### Response
 
 **[*operations.V2CountTransactionsResponse](../../models/operations/v2counttransactionsresponse.md), error**
-| Error Object              | Status Code               | Content Type              |
+
+### Errors
+
+| Error Type                | Status Code               | Content Type              |
 | ------------------------- | ------------------------- | ------------------------- |
 | sdkerrors.V2ErrorResponse | default                   | application/json          |
-| sdkerrors.SDKError        | 4xx-5xx                   | */*                       |
+| sdkerrors.SDKError        | 4XX, 5XX                  | \*/\*                     |
 
 ## ListTransactions
 
@@ -906,27 +1136,33 @@ List transactions from a ledger, sorted by id in descending order.
 package main
 
 import(
-	"github.com/formancehq/stack/ledger/client/models/components"
-	"github.com/formancehq/stack/ledger/client"
-	"github.com/formancehq/stack/ledger/client/models/operations"
 	"context"
+	"os"
+	"github.com/formancehq/ledger/pkg/client/models/components"
+	"github.com/formancehq/ledger/pkg/client"
+	"github.com/formancehq/ledger/pkg/client/models/operations"
 	"log"
 )
 
 func main() {
+    ctx := context.Background()
+
     s := client.New(
         client.WithSecurity(components.Security{
-            ClientID: "",
-            ClientSecret: "",
+            ClientID: client.String(os.Getenv("FORMANCE_CLIENT_ID")),
+            ClientSecret: client.String(os.Getenv("FORMANCE_CLIENT_SECRET")),
         }),
     )
-    request := operations.V2ListTransactionsRequest{
+
+    res, err := s.Ledger.V2.ListTransactions(ctx, operations.V2ListTransactionsRequest{
         Ledger: "ledger001",
         PageSize: client.Int64(100),
         Cursor: client.String("aHR0cHM6Ly9nLnBhZ2UvTmVrby1SYW1lbj9zaGFyZQ=="),
-    }
-    ctx := context.Background()
-    res, err := s.Ledger.V2.ListTransactions(ctx, request)
+        Sort: client.String("id:desc"),
+        RequestBody: map[string]any{
+
+        },
+    })
     if err != nil {
         log.Fatal(err)
     }
@@ -944,14 +1180,16 @@ func main() {
 | `request`                                                                                    | [operations.V2ListTransactionsRequest](../../models/operations/v2listtransactionsrequest.md) | :heavy_check_mark:                                                                           | The request object to use for the request.                                                   |
 | `opts`                                                                                       | [][operations.Option](../../models/operations/option.md)                                     | :heavy_minus_sign:                                                                           | The options for this request.                                                                |
 
-
 ### Response
 
 **[*operations.V2ListTransactionsResponse](../../models/operations/v2listtransactionsresponse.md), error**
-| Error Object              | Status Code               | Content Type              |
+
+### Errors
+
+| Error Type                | Status Code               | Content Type              |
 | ------------------------- | ------------------------- | ------------------------- |
 | sdkerrors.V2ErrorResponse | default                   | application/json          |
-| sdkerrors.SDKError        | 4xx-5xx                   | */*                       |
+| sdkerrors.SDKError        | 4XX, 5XX                  | \*/\*                     |
 
 ## CreateTransaction
 
@@ -963,53 +1201,70 @@ Create a new transaction to a ledger
 package main
 
 import(
-	"github.com/formancehq/stack/ledger/client/models/components"
-	"github.com/formancehq/stack/ledger/client"
-	"math/big"
 	"context"
+	"os"
+	"github.com/formancehq/ledger/pkg/client/models/components"
+	"github.com/formancehq/ledger/pkg/client"
+	"math/big"
+	"github.com/formancehq/ledger/pkg/client/models/operations"
 	"log"
 )
 
 func main() {
+    ctx := context.Background()
+
     s := client.New(
         client.WithSecurity(components.Security{
-            ClientID: "",
-            ClientSecret: "",
+            ClientID: client.String(os.Getenv("FORMANCE_CLIENT_ID")),
+            ClientSecret: client.String(os.Getenv("FORMANCE_CLIENT_SECRET")),
         }),
     )
-    var ledger string = "ledger001"
 
-    v2PostTransaction := components.V2PostTransaction{
-        Postings: []components.V2Posting{
-            components.V2Posting{
-                Amount: big.NewInt(100),
-                Asset: "COIN",
-                Destination: "users:002",
-                Source: "users:001",
+    res, err := s.Ledger.V2.CreateTransaction(ctx, operations.V2CreateTransactionRequest{
+        Ledger: "ledger001",
+        DryRun: client.Bool(true),
+        Force: client.Bool(true),
+        SchemaVersion: client.String("v1.0.0"),
+        V2PostTransaction: components.V2PostTransaction{
+            Postings: []components.V2Posting{
+                components.V2Posting{
+                    Amount: big.NewInt(100),
+                    Asset: "COIN",
+                    Destination: "users:002",
+                    Source: "users:001",
+                },
+            },
+            Script: &components.V2PostTransactionScript{
+                Template: client.String("CUSTOMER_DEPOSIT"),
+                Plain: client.String("vars {\n" +
+                "account $user\n" +
+                "}\n" +
+                "send [COIN 10] (\n" +
+                "	source = @world\n" +
+                "	destination = $user\n" +
+                ")\n" +
+                ""),
+                Vars: map[string]string{
+                    "user": "users:042",
+                },
+            },
+            Reference: client.String("ref:001"),
+            Metadata: map[string]string{
+                "admin": "true",
+            },
+            AccountMetadata: map[string]map[string]string{
+                "key": map[string]string{
+                    "admin": "true",
+                },
+                "key1": map[string]string{
+                    "admin": "true",
+                },
+                "key2": map[string]string{
+                    "admin": "true",
+                },
             },
         },
-        Script: &components.V2PostTransactionScript{
-            Plain: "vars {
-        account $user
-        }
-        send [COIN 10] (
-        	source = @world
-        	destination = $user
-        )
-        ",
-            Vars: map[string]any{
-                "user": "users:042",
-            },
-        },
-        Reference: client.String("ref:001"),
-        Metadata: map[string]string{
-            "admin": "true",
-        },
-    }
-
-    var dryRun *bool = client.Bool(true)
-    ctx := context.Background()
-    res, err := s.Ledger.V2.CreateTransaction(ctx, ledger, v2PostTransaction, dryRun, nil)
+    })
     if err != nil {
         log.Fatal(err)
     }
@@ -1021,23 +1276,22 @@ func main() {
 
 ### Parameters
 
-| Parameter                                                                                                                                                                              | Type                                                                                                                                                                                   | Required                                                                                                                                                                               | Description                                                                                                                                                                            | Example                                                                                                                                                                                |
-| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ctx`                                                                                                                                                                                  | [context.Context](https://pkg.go.dev/context#Context)                                                                                                                                  | :heavy_check_mark:                                                                                                                                                                     | The context to use for the request.                                                                                                                                                    |                                                                                                                                                                                        |
-| `ledger`                                                                                                                                                                               | *string*                                                                                                                                                                               | :heavy_check_mark:                                                                                                                                                                     | Name of the ledger.                                                                                                                                                                    | ledger001                                                                                                                                                                              |
-| `v2PostTransaction`                                                                                                                                                                    | [components.V2PostTransaction](../../models/components/v2posttransaction.md)                                                                                                           | :heavy_check_mark:                                                                                                                                                                     | The request body must contain at least one of the following objects:<br/>  - `postings`: suitable for simple transactions<br/>  - `script`: enabling more complex transactions with Numscript<br/> |                                                                                                                                                                                        |
-| `dryRun`                                                                                                                                                                               | **bool*                                                                                                                                                                                | :heavy_minus_sign:                                                                                                                                                                     | Set the dryRun mode. dry run mode doesn't add the logs to the database or publish a message to the message broker.                                                                     | true                                                                                                                                                                                   |
-| `idempotencyKey`                                                                                                                                                                       | **string*                                                                                                                                                                              | :heavy_minus_sign:                                                                                                                                                                     | Use an idempotency key                                                                                                                                                                 |                                                                                                                                                                                        |
-| `opts`                                                                                                                                                                                 | [][operations.Option](../../models/operations/option.md)                                                                                                                               | :heavy_minus_sign:                                                                                                                                                                     | The options for this request.                                                                                                                                                          |                                                                                                                                                                                        |
-
+| Parameter                                                                                      | Type                                                                                           | Required                                                                                       | Description                                                                                    |
+| ---------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `ctx`                                                                                          | [context.Context](https://pkg.go.dev/context#Context)                                          | :heavy_check_mark:                                                                             | The context to use for the request.                                                            |
+| `request`                                                                                      | [operations.V2CreateTransactionRequest](../../models/operations/v2createtransactionrequest.md) | :heavy_check_mark:                                                                             | The request object to use for the request.                                                     |
+| `opts`                                                                                         | [][operations.Option](../../models/operations/option.md)                                       | :heavy_minus_sign:                                                                             | The options for this request.                                                                  |
 
 ### Response
 
 **[*operations.V2CreateTransactionResponse](../../models/operations/v2createtransactionresponse.md), error**
-| Error Object              | Status Code               | Content Type              |
+
+### Errors
+
+| Error Type                | Status Code               | Content Type              |
 | ------------------------- | ------------------------- | ------------------------- |
 | sdkerrors.V2ErrorResponse | default                   | application/json          |
-| sdkerrors.SDKError        | 4xx-5xx                   | */*                       |
+| sdkerrors.SDKError        | 4XX, 5XX                  | \*/\*                     |
 
 ## GetTransaction
 
@@ -1049,26 +1303,29 @@ Get transaction from a ledger by its ID
 package main
 
 import(
-	"github.com/formancehq/stack/ledger/client/models/components"
-	"github.com/formancehq/stack/ledger/client"
-	"math/big"
-	"time"
 	"context"
+	"os"
+	"github.com/formancehq/ledger/pkg/client/models/components"
+	"github.com/formancehq/ledger/pkg/client"
+	"math/big"
+	"github.com/formancehq/ledger/pkg/client/models/operations"
 	"log"
 )
 
 func main() {
+    ctx := context.Background()
+
     s := client.New(
         client.WithSecurity(components.Security{
-            ClientID: "",
-            ClientSecret: "",
+            ClientID: client.String(os.Getenv("FORMANCE_CLIENT_ID")),
+            ClientSecret: client.String(os.Getenv("FORMANCE_CLIENT_SECRET")),
         }),
     )
-    var ledger string = "ledger001"
 
-    var id *big.Int = big.NewInt(1234)
-    ctx := context.Background()
-    res, err := s.Ledger.V2.GetTransaction(ctx, ledger, id, nil, nil)
+    res, err := s.Ledger.V2.GetTransaction(ctx, operations.V2GetTransactionRequest{
+        Ledger: "ledger001",
+        ID: big.NewInt(1234),
+    })
     if err != nil {
         log.Fatal(err)
     }
@@ -1080,23 +1337,22 @@ func main() {
 
 ### Parameters
 
-| Parameter                                                | Type                                                     | Required                                                 | Description                                              | Example                                                  |
-| -------------------------------------------------------- | -------------------------------------------------------- | -------------------------------------------------------- | -------------------------------------------------------- | -------------------------------------------------------- |
-| `ctx`                                                    | [context.Context](https://pkg.go.dev/context#Context)    | :heavy_check_mark:                                       | The context to use for the request.                      |                                                          |
-| `ledger`                                                 | *string*                                                 | :heavy_check_mark:                                       | Name of the ledger.                                      | ledger001                                                |
-| `id`                                                     | [*big.Int](https://pkg.go.dev/math/big#Int)              | :heavy_check_mark:                                       | Transaction ID.                                          | 1234                                                     |
-| `expand`                                                 | **string*                                                | :heavy_minus_sign:                                       | N/A                                                      |                                                          |
-| `pit`                                                    | [*time.Time](https://pkg.go.dev/time#Time)               | :heavy_minus_sign:                                       | N/A                                                      |                                                          |
-| `opts`                                                   | [][operations.Option](../../models/operations/option.md) | :heavy_minus_sign:                                       | The options for this request.                            |                                                          |
-
+| Parameter                                                                                | Type                                                                                     | Required                                                                                 | Description                                                                              |
+| ---------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `ctx`                                                                                    | [context.Context](https://pkg.go.dev/context#Context)                                    | :heavy_check_mark:                                                                       | The context to use for the request.                                                      |
+| `request`                                                                                | [operations.V2GetTransactionRequest](../../models/operations/v2gettransactionrequest.md) | :heavy_check_mark:                                                                       | The request object to use for the request.                                               |
+| `opts`                                                                                   | [][operations.Option](../../models/operations/option.md)                                 | :heavy_minus_sign:                                                                       | The options for this request.                                                            |
 
 ### Response
 
 **[*operations.V2GetTransactionResponse](../../models/operations/v2gettransactionresponse.md), error**
-| Error Object              | Status Code               | Content Type              |
+
+### Errors
+
+| Error Type                | Status Code               | Content Type              |
 | ------------------------- | ------------------------- | ------------------------- |
 | sdkerrors.V2ErrorResponse | default                   | application/json          |
-| sdkerrors.SDKError        | 4xx-5xx                   | */*                       |
+| sdkerrors.SDKError        | 4XX, 5XX                  | \*/\*                     |
 
 ## AddMetadataOnTransaction
 
@@ -1108,31 +1364,34 @@ Set the metadata of a transaction by its ID
 package main
 
 import(
-	"github.com/formancehq/stack/ledger/client/models/components"
-	"github.com/formancehq/stack/ledger/client"
-	"github.com/formancehq/stack/ledger/client/models/operations"
-	"math/big"
 	"context"
+	"os"
+	"github.com/formancehq/ledger/pkg/client/models/components"
+	"github.com/formancehq/ledger/pkg/client"
+	"math/big"
+	"github.com/formancehq/ledger/pkg/client/models/operations"
 	"log"
 )
 
 func main() {
+    ctx := context.Background()
+
     s := client.New(
         client.WithSecurity(components.Security{
-            ClientID: "",
-            ClientSecret: "",
+            ClientID: client.String(os.Getenv("FORMANCE_CLIENT_ID")),
+            ClientSecret: client.String(os.Getenv("FORMANCE_CLIENT_SECRET")),
         }),
     )
-    request := operations.V2AddMetadataOnTransactionRequest{
+
+    res, err := s.Ledger.V2.AddMetadataOnTransaction(ctx, operations.V2AddMetadataOnTransactionRequest{
         Ledger: "ledger001",
         ID: big.NewInt(1234),
         DryRun: client.Bool(true),
+        SchemaVersion: client.String("v1.0.0"),
         RequestBody: map[string]string{
             "admin": "true",
         },
-    }
-    ctx := context.Background()
-    res, err := s.Ledger.V2.AddMetadataOnTransaction(ctx, request)
+    })
     if err != nil {
         log.Fatal(err)
     }
@@ -1150,14 +1409,16 @@ func main() {
 | `request`                                                                                                    | [operations.V2AddMetadataOnTransactionRequest](../../models/operations/v2addmetadataontransactionrequest.md) | :heavy_check_mark:                                                                                           | The request object to use for the request.                                                                   |
 | `opts`                                                                                                       | [][operations.Option](../../models/operations/option.md)                                                     | :heavy_minus_sign:                                                                                           | The options for this request.                                                                                |
 
-
 ### Response
 
 **[*operations.V2AddMetadataOnTransactionResponse](../../models/operations/v2addmetadataontransactionresponse.md), error**
-| Error Object              | Status Code               | Content Type              |
+
+### Errors
+
+| Error Type                | Status Code               | Content Type              |
 | ------------------------- | ------------------------- | ------------------------- |
 | sdkerrors.V2ErrorResponse | default                   | application/json          |
-| sdkerrors.SDKError        | 4xx-5xx                   | */*                       |
+| sdkerrors.SDKError        | 4XX, 5XX                  | \*/\*                     |
 
 ## DeleteTransactionMetadata
 
@@ -1169,27 +1430,30 @@ Delete metadata by key
 package main
 
 import(
-	"github.com/formancehq/stack/ledger/client/models/components"
-	"github.com/formancehq/stack/ledger/client"
-	"math/big"
 	"context"
+	"os"
+	"github.com/formancehq/ledger/pkg/client/models/components"
+	"github.com/formancehq/ledger/pkg/client"
+	"math/big"
+	"github.com/formancehq/ledger/pkg/client/models/operations"
 	"log"
 )
 
 func main() {
+    ctx := context.Background()
+
     s := client.New(
         client.WithSecurity(components.Security{
-            ClientID: "",
-            ClientSecret: "",
+            ClientID: client.String(os.Getenv("FORMANCE_CLIENT_ID")),
+            ClientSecret: client.String(os.Getenv("FORMANCE_CLIENT_SECRET")),
         }),
     )
-    var ledger string = "ledger001"
 
-    var id *big.Int = big.NewInt(1234)
-
-    var key string = "foo"
-    ctx := context.Background()
-    res, err := s.Ledger.V2.DeleteTransactionMetadata(ctx, ledger, id, key)
+    res, err := s.Ledger.V2.DeleteTransactionMetadata(ctx, operations.V2DeleteTransactionMetadataRequest{
+        Ledger: "ledger001",
+        ID: big.NewInt(1234),
+        Key: "foo",
+    })
     if err != nil {
         log.Fatal(err)
     }
@@ -1201,22 +1465,22 @@ func main() {
 
 ### Parameters
 
-| Parameter                                                | Type                                                     | Required                                                 | Description                                              | Example                                                  |
-| -------------------------------------------------------- | -------------------------------------------------------- | -------------------------------------------------------- | -------------------------------------------------------- | -------------------------------------------------------- |
-| `ctx`                                                    | [context.Context](https://pkg.go.dev/context#Context)    | :heavy_check_mark:                                       | The context to use for the request.                      |                                                          |
-| `ledger`                                                 | *string*                                                 | :heavy_check_mark:                                       | Name of the ledger.                                      | ledger001                                                |
-| `id`                                                     | [*big.Int](https://pkg.go.dev/math/big#Int)              | :heavy_check_mark:                                       | Transaction ID.                                          | 1234                                                     |
-| `key`                                                    | *string*                                                 | :heavy_check_mark:                                       | The key to remove.                                       | foo                                                      |
-| `opts`                                                   | [][operations.Option](../../models/operations/option.md) | :heavy_minus_sign:                                       | The options for this request.                            |                                                          |
-
+| Parameter                                                                                                      | Type                                                                                                           | Required                                                                                                       | Description                                                                                                    |
+| -------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `ctx`                                                                                                          | [context.Context](https://pkg.go.dev/context#Context)                                                          | :heavy_check_mark:                                                                                             | The context to use for the request.                                                                            |
+| `request`                                                                                                      | [operations.V2DeleteTransactionMetadataRequest](../../models/operations/v2deletetransactionmetadatarequest.md) | :heavy_check_mark:                                                                                             | The request object to use for the request.                                                                     |
+| `opts`                                                                                                         | [][operations.Option](../../models/operations/option.md)                                                       | :heavy_minus_sign:                                                                                             | The options for this request.                                                                                  |
 
 ### Response
 
 **[*operations.V2DeleteTransactionMetadataResponse](../../models/operations/v2deletetransactionmetadataresponse.md), error**
-| Error Object              | Status Code               | Content Type              |
+
+### Errors
+
+| Error Type                | Status Code               | Content Type              |
 | ------------------------- | ------------------------- | ------------------------- |
 | sdkerrors.V2ErrorResponse | default                   | application/json          |
-| sdkerrors.SDKError        | 4xx-5xx                   | */*                       |
+| sdkerrors.SDKError        | 4XX, 5XX                  | \*/\*                     |
 
 ## RevertTransaction
 
@@ -1228,29 +1492,35 @@ Revert a ledger transaction by its ID
 package main
 
 import(
-	"github.com/formancehq/stack/ledger/client/models/components"
-	"github.com/formancehq/stack/ledger/client"
-	"math/big"
 	"context"
+	"os"
+	"github.com/formancehq/ledger/pkg/client/models/components"
+	"github.com/formancehq/ledger/pkg/client"
+	"math/big"
+	"github.com/formancehq/ledger/pkg/client/models/operations"
 	"log"
 )
 
 func main() {
+    ctx := context.Background()
+
     s := client.New(
         client.WithSecurity(components.Security{
-            ClientID: "",
-            ClientSecret: "",
+            ClientID: client.String(os.Getenv("FORMANCE_CLIENT_ID")),
+            ClientSecret: client.String(os.Getenv("FORMANCE_CLIENT_SECRET")),
         }),
     )
-    var ledger string = "ledger001"
 
-    var id *big.Int = big.NewInt(1234)
-    ctx := context.Background()
-    res, err := s.Ledger.V2.RevertTransaction(ctx, ledger, id, nil, nil)
+    res, err := s.Ledger.V2.RevertTransaction(ctx, operations.V2RevertTransactionRequest{
+        Ledger: "ledger001",
+        ID: big.NewInt(1234),
+        DryRun: client.Bool(true),
+        SchemaVersion: client.String("v1.0.0"),
+    })
     if err != nil {
         log.Fatal(err)
     }
-    if res.V2RevertTransactionResponse != nil {
+    if res.V2CreateTransactionResponse != nil {
         // handle response
     }
 }
@@ -1258,23 +1528,22 @@ func main() {
 
 ### Parameters
 
-| Parameter                                                | Type                                                     | Required                                                 | Description                                              | Example                                                  |
-| -------------------------------------------------------- | -------------------------------------------------------- | -------------------------------------------------------- | -------------------------------------------------------- | -------------------------------------------------------- |
-| `ctx`                                                    | [context.Context](https://pkg.go.dev/context#Context)    | :heavy_check_mark:                                       | The context to use for the request.                      |                                                          |
-| `ledger`                                                 | *string*                                                 | :heavy_check_mark:                                       | Name of the ledger.                                      | ledger001                                                |
-| `id`                                                     | [*big.Int](https://pkg.go.dev/math/big#Int)              | :heavy_check_mark:                                       | Transaction ID.                                          | 1234                                                     |
-| `force`                                                  | **bool*                                                  | :heavy_minus_sign:                                       | Force revert                                             |                                                          |
-| `atEffectiveDate`                                        | **bool*                                                  | :heavy_minus_sign:                                       | Revert transaction at effective date of the original tx  |                                                          |
-| `opts`                                                   | [][operations.Option](../../models/operations/option.md) | :heavy_minus_sign:                                       | The options for this request.                            |                                                          |
-
+| Parameter                                                                                      | Type                                                                                           | Required                                                                                       | Description                                                                                    |
+| ---------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `ctx`                                                                                          | [context.Context](https://pkg.go.dev/context#Context)                                          | :heavy_check_mark:                                                                             | The context to use for the request.                                                            |
+| `request`                                                                                      | [operations.V2RevertTransactionRequest](../../models/operations/v2reverttransactionrequest.md) | :heavy_check_mark:                                                                             | The request object to use for the request.                                                     |
+| `opts`                                                                                         | [][operations.Option](../../models/operations/option.md)                                       | :heavy_minus_sign:                                                                             | The options for this request.                                                                  |
 
 ### Response
 
 **[*operations.V2RevertTransactionResponse](../../models/operations/v2reverttransactionresponse.md), error**
-| Error Object              | Status Code               | Content Type              |
+
+### Errors
+
+| Error Type                | Status Code               | Content Type              |
 | ------------------------- | ------------------------- | ------------------------- |
 | sdkerrors.V2ErrorResponse | default                   | application/json          |
-| sdkerrors.SDKError        | 4xx-5xx                   | */*                       |
+| sdkerrors.SDKError        | 4XX, 5XX                  | \*/\*                     |
 
 ## GetBalancesAggregated
 
@@ -1286,23 +1555,32 @@ Get the aggregated balances from selected accounts
 package main
 
 import(
-	"github.com/formancehq/stack/ledger/client/models/components"
-	"github.com/formancehq/stack/ledger/client"
-	"time"
 	"context"
+	"os"
+	"github.com/formancehq/ledger/pkg/client/models/components"
+	"github.com/formancehq/ledger/pkg/client"
+	"github.com/formancehq/ledger/pkg/client/models/operations"
 	"log"
 )
 
 func main() {
+    ctx := context.Background()
+
     s := client.New(
         client.WithSecurity(components.Security{
-            ClientID: "",
-            ClientSecret: "",
+            ClientID: client.String(os.Getenv("FORMANCE_CLIENT_ID")),
+            ClientSecret: client.String(os.Getenv("FORMANCE_CLIENT_SECRET")),
         }),
     )
-    var ledger string = "ledger001"
-    ctx := context.Background()
-    res, err := s.Ledger.V2.GetBalancesAggregated(ctx, ledger, nil, nil, nil)
+
+    res, err := s.Ledger.V2.GetBalancesAggregated(ctx, operations.V2GetBalancesAggregatedRequest{
+        Ledger: "ledger001",
+        RequestBody: map[string]any{
+            "key": "<value>",
+            "key1": "<value>",
+            "key2": "<value>",
+        },
+    })
     if err != nil {
         log.Fatal(err)
     }
@@ -1314,23 +1592,22 @@ func main() {
 
 ### Parameters
 
-| Parameter                                                | Type                                                     | Required                                                 | Description                                              | Example                                                  |
-| -------------------------------------------------------- | -------------------------------------------------------- | -------------------------------------------------------- | -------------------------------------------------------- | -------------------------------------------------------- |
-| `ctx`                                                    | [context.Context](https://pkg.go.dev/context#Context)    | :heavy_check_mark:                                       | The context to use for the request.                      |                                                          |
-| `ledger`                                                 | *string*                                                 | :heavy_check_mark:                                       | Name of the ledger.                                      | ledger001                                                |
-| `pit`                                                    | [*time.Time](https://pkg.go.dev/time#Time)               | :heavy_minus_sign:                                       | N/A                                                      |                                                          |
-| `useInsertionDate`                                       | **bool*                                                  | :heavy_minus_sign:                                       | Use insertion date instead of effective date             |                                                          |
-| `requestBody`                                            | map[string]*any*                                         | :heavy_minus_sign:                                       | N/A                                                      |                                                          |
-| `opts`                                                   | [][operations.Option](../../models/operations/option.md) | :heavy_minus_sign:                                       | The options for this request.                            |                                                          |
-
+| Parameter                                                                                              | Type                                                                                                   | Required                                                                                               | Description                                                                                            |
+| ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------ |
+| `ctx`                                                                                                  | [context.Context](https://pkg.go.dev/context#Context)                                                  | :heavy_check_mark:                                                                                     | The context to use for the request.                                                                    |
+| `request`                                                                                              | [operations.V2GetBalancesAggregatedRequest](../../models/operations/v2getbalancesaggregatedrequest.md) | :heavy_check_mark:                                                                                     | The request object to use for the request.                                                             |
+| `opts`                                                                                                 | [][operations.Option](../../models/operations/option.md)                                               | :heavy_minus_sign:                                                                                     | The options for this request.                                                                          |
 
 ### Response
 
 **[*operations.V2GetBalancesAggregatedResponse](../../models/operations/v2getbalancesaggregatedresponse.md), error**
-| Error Object              | Status Code               | Content Type              |
+
+### Errors
+
+| Error Type                | Status Code               | Content Type              |
 | ------------------------- | ------------------------- | ------------------------- |
 | sdkerrors.V2ErrorResponse | default                   | application/json          |
-| sdkerrors.SDKError        | 4xx-5xx                   | */*                       |
+| sdkerrors.SDKError        | 4XX, 5XX                  | \*/\*                     |
 
 ## GetVolumesWithBalances
 
@@ -1342,28 +1619,34 @@ Get list of volumes with balances for (account/asset)
 package main
 
 import(
-	"github.com/formancehq/stack/ledger/client/models/components"
-	"github.com/formancehq/stack/ledger/client"
-	"github.com/formancehq/stack/ledger/client/models/operations"
 	"context"
+	"os"
+	"github.com/formancehq/ledger/pkg/client/models/components"
+	"github.com/formancehq/ledger/pkg/client"
+	"github.com/formancehq/ledger/pkg/client/models/operations"
 	"log"
 )
 
 func main() {
+    ctx := context.Background()
+
     s := client.New(
         client.WithSecurity(components.Security{
-            ClientID: "",
-            ClientSecret: "",
+            ClientID: client.String(os.Getenv("FORMANCE_CLIENT_ID")),
+            ClientSecret: client.String(os.Getenv("FORMANCE_CLIENT_SECRET")),
         }),
     )
-    request := operations.V2GetVolumesWithBalancesRequest{
+
+    res, err := s.Ledger.V2.GetVolumesWithBalances(ctx, operations.V2GetVolumesWithBalancesRequest{
         PageSize: client.Int64(100),
         Cursor: client.String("aHR0cHM6Ly9nLnBhZ2UvTmVrby1SYW1lbj9zaGFyZQ=="),
         Ledger: "ledger001",
         GroupBy: client.Int64(3),
-    }
-    ctx := context.Background()
-    res, err := s.Ledger.V2.GetVolumesWithBalances(ctx, request)
+        Sort: client.String("id:desc"),
+        RequestBody: map[string]any{
+            "key": "<value>",
+        },
+    })
     if err != nil {
         log.Fatal(err)
     }
@@ -1381,14 +1664,16 @@ func main() {
 | `request`                                                                                                | [operations.V2GetVolumesWithBalancesRequest](../../models/operations/v2getvolumeswithbalancesrequest.md) | :heavy_check_mark:                                                                                       | The request object to use for the request.                                                               |
 | `opts`                                                                                                   | [][operations.Option](../../models/operations/option.md)                                                 | :heavy_minus_sign:                                                                                       | The options for this request.                                                                            |
 
-
 ### Response
 
 **[*operations.V2GetVolumesWithBalancesResponse](../../models/operations/v2getvolumeswithbalancesresponse.md), error**
-| Error Object              | Status Code               | Content Type              |
+
+### Errors
+
+| Error Type                | Status Code               | Content Type              |
 | ------------------------- | ------------------------- | ------------------------- |
 | sdkerrors.V2ErrorResponse | default                   | application/json          |
-| sdkerrors.SDKError        | 4xx-5xx                   | */*                       |
+| sdkerrors.SDKError        | 4XX, 5XX                  | \*/\*                     |
 
 ## ListLogs
 
@@ -1400,27 +1685,33 @@ List the logs from a ledger, sorted by ID in descending order.
 package main
 
 import(
-	"github.com/formancehq/stack/ledger/client/models/components"
-	"github.com/formancehq/stack/ledger/client"
-	"github.com/formancehq/stack/ledger/client/models/operations"
 	"context"
+	"os"
+	"github.com/formancehq/ledger/pkg/client/models/components"
+	"github.com/formancehq/ledger/pkg/client"
+	"github.com/formancehq/ledger/pkg/client/models/operations"
 	"log"
 )
 
 func main() {
+    ctx := context.Background()
+
     s := client.New(
         client.WithSecurity(components.Security{
-            ClientID: "",
-            ClientSecret: "",
+            ClientID: client.String(os.Getenv("FORMANCE_CLIENT_ID")),
+            ClientSecret: client.String(os.Getenv("FORMANCE_CLIENT_SECRET")),
         }),
     )
-    request := operations.V2ListLogsRequest{
+
+    res, err := s.Ledger.V2.ListLogs(ctx, operations.V2ListLogsRequest{
         Ledger: "ledger001",
         PageSize: client.Int64(100),
         Cursor: client.String("aHR0cHM6Ly9nLnBhZ2UvTmVrby1SYW1lbj9zaGFyZQ=="),
-    }
-    ctx := context.Background()
-    res, err := s.Ledger.V2.ListLogs(ctx, request)
+        Sort: client.String("id:desc"),
+        RequestBody: map[string]any{
+
+        },
+    })
     if err != nil {
         log.Fatal(err)
     }
@@ -1438,14 +1729,16 @@ func main() {
 | `request`                                                                    | [operations.V2ListLogsRequest](../../models/operations/v2listlogsrequest.md) | :heavy_check_mark:                                                           | The request object to use for the request.                                   |
 | `opts`                                                                       | [][operations.Option](../../models/operations/option.md)                     | :heavy_minus_sign:                                                           | The options for this request.                                                |
 
-
 ### Response
 
 **[*operations.V2ListLogsResponse](../../models/operations/v2listlogsresponse.md), error**
-| Error Object              | Status Code               | Content Type              |
+
+### Errors
+
+| Error Type                | Status Code               | Content Type              |
 | ------------------------- | ------------------------- | ------------------------- |
 | sdkerrors.V2ErrorResponse | default                   | application/json          |
-| sdkerrors.SDKError        | 4xx-5xx                   | */*                       |
+| sdkerrors.SDKError        | 4XX, 5XX                  | \*/\*                     |
 
 ## ImportLogs
 
@@ -1455,22 +1748,33 @@ func main() {
 package main
 
 import(
-	"github.com/formancehq/stack/ledger/client/models/components"
-	"github.com/formancehq/stack/ledger/client"
 	"context"
+	"os"
+	"github.com/formancehq/ledger/pkg/client/models/components"
+	"github.com/formancehq/ledger/pkg/client"
+	"github.com/formancehq/ledger/pkg/client/models/operations"
 	"log"
 )
 
 func main() {
+    ctx := context.Background()
+
     s := client.New(
         client.WithSecurity(components.Security{
-            ClientID: "",
-            ClientSecret: "",
+            ClientID: client.String(os.Getenv("FORMANCE_CLIENT_ID")),
+            ClientSecret: client.String(os.Getenv("FORMANCE_CLIENT_SECRET")),
         }),
     )
-    var ledger string = "ledger001"
-    ctx := context.Background()
-    res, err := s.Ledger.V2.ImportLogs(ctx, ledger, nil)
+
+    example, fileErr := os.Open("example.file")
+    if fileErr != nil {
+        panic(fileErr)
+    }
+
+    res, err := s.Ledger.V2.ImportLogs(ctx, operations.V2ImportLogsRequest{
+        Ledger: "ledger001",
+        V2ImportLogsRequest: example,
+    })
     if err != nil {
         log.Fatal(err)
     }
@@ -1482,21 +1786,22 @@ func main() {
 
 ### Parameters
 
-| Parameter                                                | Type                                                     | Required                                                 | Description                                              | Example                                                  |
-| -------------------------------------------------------- | -------------------------------------------------------- | -------------------------------------------------------- | -------------------------------------------------------- | -------------------------------------------------------- |
-| `ctx`                                                    | [context.Context](https://pkg.go.dev/context#Context)    | :heavy_check_mark:                                       | The context to use for the request.                      |                                                          |
-| `ledger`                                                 | *string*                                                 | :heavy_check_mark:                                       | Name of the ledger.                                      | ledger001                                                |
-| `requestBody`                                            | **string*                                                | :heavy_minus_sign:                                       | N/A                                                      |                                                          |
-| `opts`                                                   | [][operations.Option](../../models/operations/option.md) | :heavy_minus_sign:                                       | The options for this request.                            |                                                          |
-
+| Parameter                                                                        | Type                                                                             | Required                                                                         | Description                                                                      |
+| -------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `ctx`                                                                            | [context.Context](https://pkg.go.dev/context#Context)                            | :heavy_check_mark:                                                               | The context to use for the request.                                              |
+| `request`                                                                        | [operations.V2ImportLogsRequest](../../models/operations/v2importlogsrequest.md) | :heavy_check_mark:                                                               | The request object to use for the request.                                       |
+| `opts`                                                                           | [][operations.Option](../../models/operations/option.md)                         | :heavy_minus_sign:                                                               | The options for this request.                                                    |
 
 ### Response
 
 **[*operations.V2ImportLogsResponse](../../models/operations/v2importlogsresponse.md), error**
-| Error Object              | Status Code               | Content Type              |
+
+### Errors
+
+| Error Type                | Status Code               | Content Type              |
 | ------------------------- | ------------------------- | ------------------------- |
 | sdkerrors.V2ErrorResponse | default                   | application/json          |
-| sdkerrors.SDKError        | 4xx-5xx                   | */*                       |
+| sdkerrors.SDKError        | 4XX, 5XX                  | \*/\*                     |
 
 ## ExportLogs
 
@@ -1508,22 +1813,27 @@ Export logs
 package main
 
 import(
-	"github.com/formancehq/stack/ledger/client/models/components"
-	"github.com/formancehq/stack/ledger/client"
 	"context"
+	"os"
+	"github.com/formancehq/ledger/pkg/client/models/components"
+	"github.com/formancehq/ledger/pkg/client"
+	"github.com/formancehq/ledger/pkg/client/models/operations"
 	"log"
 )
 
 func main() {
+    ctx := context.Background()
+
     s := client.New(
         client.WithSecurity(components.Security{
-            ClientID: "",
-            ClientSecret: "",
+            ClientID: client.String(os.Getenv("FORMANCE_CLIENT_ID")),
+            ClientSecret: client.String(os.Getenv("FORMANCE_CLIENT_SECRET")),
         }),
     )
-    var ledger string = "ledger001"
-    ctx := context.Background()
-    res, err := s.Ledger.V2.ExportLogs(ctx, ledger)
+
+    res, err := s.Ledger.V2.ExportLogs(ctx, operations.V2ExportLogsRequest{
+        Ledger: "ledger001",
+    })
     if err != nil {
         log.Fatal(err)
     }
@@ -1535,16 +1845,927 @@ func main() {
 
 ### Parameters
 
-| Parameter                                                | Type                                                     | Required                                                 | Description                                              | Example                                                  |
-| -------------------------------------------------------- | -------------------------------------------------------- | -------------------------------------------------------- | -------------------------------------------------------- | -------------------------------------------------------- |
-| `ctx`                                                    | [context.Context](https://pkg.go.dev/context#Context)    | :heavy_check_mark:                                       | The context to use for the request.                      |                                                          |
-| `ledger`                                                 | *string*                                                 | :heavy_check_mark:                                       | Name of the ledger.                                      | ledger001                                                |
-| `opts`                                                   | [][operations.Option](../../models/operations/option.md) | :heavy_minus_sign:                                       | The options for this request.                            |                                                          |
-
+| Parameter                                                                        | Type                                                                             | Required                                                                         | Description                                                                      |
+| -------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `ctx`                                                                            | [context.Context](https://pkg.go.dev/context#Context)                            | :heavy_check_mark:                                                               | The context to use for the request.                                              |
+| `request`                                                                        | [operations.V2ExportLogsRequest](../../models/operations/v2exportlogsrequest.md) | :heavy_check_mark:                                                               | The request object to use for the request.                                       |
+| `opts`                                                                           | [][operations.Option](../../models/operations/option.md)                         | :heavy_minus_sign:                                                               | The options for this request.                                                    |
 
 ### Response
 
 **[*operations.V2ExportLogsResponse](../../models/operations/v2exportlogsresponse.md), error**
-| Error Object       | Status Code        | Content Type       |
+
+### Errors
+
+| Error Type         | Status Code        | Content Type       |
 | ------------------ | ------------------ | ------------------ |
-| sdkerrors.SDKError | 4xx-5xx            | */*                |
+| sdkerrors.SDKError | 4XX, 5XX           | \*/\*              |
+
+## RunQuery
+
+Run a query template on a ledger
+
+### Example Usage
+
+```go
+package main
+
+import(
+	"context"
+	"os"
+	"github.com/formancehq/ledger/pkg/client/models/components"
+	"github.com/formancehq/ledger/pkg/client"
+	"github.com/formancehq/ledger/pkg/client/models/operations"
+	"log"
+)
+
+func main() {
+    ctx := context.Background()
+
+    s := client.New(
+        client.WithSecurity(components.Security{
+            ClientID: client.String(os.Getenv("FORMANCE_CLIENT_ID")),
+            ClientSecret: client.String(os.Getenv("FORMANCE_CLIENT_SECRET")),
+        }),
+    )
+
+    res, err := s.Ledger.V2.RunQuery(ctx, operations.V2RunQueryRequest{
+        Ledger: "ledger001",
+        SchemaVersion: "v1.0.0",
+        ID: "CUSTOMER_DEPOSIT",
+        PageSize: client.Int64(100),
+        Cursor: client.String("aHR0cHM6Ly9nLnBhZ2UvTmVrby1SYW1lbj9zaGFyZQ=="),
+        Sort: client.String("id:desc"),
+        RequestBody: operations.V2RunQueryRequestBody{
+            Params: client.Pointer(components.CreateV2QueryParamsQueryTemplateAccountParams(
+                components.QueryTemplateAccountParams{
+                    PageSize: client.Int64(100),
+                    Cursor: client.String("aHR0cHM6Ly9nLnBhZ2UvTmVrby1SYW1lbj9zaGFyZQ=="),
+                },
+            )),
+        },
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+    if res.OneOf != nil {
+        // handle response
+    }
+}
+```
+
+### Parameters
+
+| Parameter                                                                    | Type                                                                         | Required                                                                     | Description                                                                  |
+| ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `ctx`                                                                        | [context.Context](https://pkg.go.dev/context#Context)                        | :heavy_check_mark:                                                           | The context to use for the request.                                          |
+| `request`                                                                    | [operations.V2RunQueryRequest](../../models/operations/v2runqueryrequest.md) | :heavy_check_mark:                                                           | The request object to use for the request.                                   |
+| `opts`                                                                       | [][operations.Option](../../models/operations/option.md)                     | :heavy_minus_sign:                                                           | The options for this request.                                                |
+
+### Response
+
+**[*operations.V2RunQueryResponse](../../models/operations/v2runqueryresponse.md), error**
+
+### Errors
+
+| Error Type                | Status Code               | Content Type              |
+| ------------------------- | ------------------------- | ------------------------- |
+| sdkerrors.V2ErrorResponse | default                   | application/json          |
+| sdkerrors.SDKError        | 4XX, 5XX                  | \*/\*                     |
+
+## ListExporters
+
+List exporters
+
+### Example Usage
+
+```go
+package main
+
+import(
+	"context"
+	"os"
+	"github.com/formancehq/ledger/pkg/client/models/components"
+	"github.com/formancehq/ledger/pkg/client"
+	"log"
+)
+
+func main() {
+    ctx := context.Background()
+
+    s := client.New(
+        client.WithSecurity(components.Security{
+            ClientID: client.String(os.Getenv("FORMANCE_CLIENT_ID")),
+            ClientSecret: client.String(os.Getenv("FORMANCE_CLIENT_SECRET")),
+        }),
+    )
+
+    res, err := s.Ledger.V2.ListExporters(ctx)
+    if err != nil {
+        log.Fatal(err)
+    }
+    if res.V2ListExportersResponse != nil {
+        // handle response
+    }
+}
+```
+
+### Parameters
+
+| Parameter                                                | Type                                                     | Required                                                 | Description                                              |
+| -------------------------------------------------------- | -------------------------------------------------------- | -------------------------------------------------------- | -------------------------------------------------------- |
+| `ctx`                                                    | [context.Context](https://pkg.go.dev/context#Context)    | :heavy_check_mark:                                       | The context to use for the request.                      |
+| `opts`                                                   | [][operations.Option](../../models/operations/option.md) | :heavy_minus_sign:                                       | The options for this request.                            |
+
+### Response
+
+**[*operations.V2ListExportersResponse](../../models/operations/v2listexportersresponse.md), error**
+
+### Errors
+
+| Error Type                | Status Code               | Content Type              |
+| ------------------------- | ------------------------- | ------------------------- |
+| sdkerrors.V2ErrorResponse | default                   | application/json          |
+| sdkerrors.SDKError        | 4XX, 5XX                  | \*/\*                     |
+
+## CreateExporter
+
+Create exporter
+
+### Example Usage
+
+```go
+package main
+
+import(
+	"context"
+	"os"
+	"github.com/formancehq/ledger/pkg/client/models/components"
+	"github.com/formancehq/ledger/pkg/client"
+	"log"
+)
+
+func main() {
+    ctx := context.Background()
+
+    s := client.New(
+        client.WithSecurity(components.Security{
+            ClientID: client.String(os.Getenv("FORMANCE_CLIENT_ID")),
+            ClientSecret: client.String(os.Getenv("FORMANCE_CLIENT_SECRET")),
+        }),
+    )
+
+    res, err := s.Ledger.V2.CreateExporter(ctx, components.V2ExporterConfiguration{
+        Driver: "<value>",
+        Config: map[string]any{
+            "key": "<value>",
+        },
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+    if res.V2CreateExporterResponse != nil {
+        // handle response
+    }
+}
+```
+
+### Parameters
+
+| Parameter                                                                                | Type                                                                                     | Required                                                                                 | Description                                                                              |
+| ---------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `ctx`                                                                                    | [context.Context](https://pkg.go.dev/context#Context)                                    | :heavy_check_mark:                                                                       | The context to use for the request.                                                      |
+| `request`                                                                                | [components.V2ExporterConfiguration](../../models/components/v2exporterconfiguration.md) | :heavy_check_mark:                                                                       | The request object to use for the request.                                               |
+| `opts`                                                                                   | [][operations.Option](../../models/operations/option.md)                                 | :heavy_minus_sign:                                                                       | The options for this request.                                                            |
+
+### Response
+
+**[*operations.V2CreateExporterResponse](../../models/operations/v2createexporterresponse.md), error**
+
+### Errors
+
+| Error Type                | Status Code               | Content Type              |
+| ------------------------- | ------------------------- | ------------------------- |
+| sdkerrors.V2ErrorResponse | default                   | application/json          |
+| sdkerrors.SDKError        | 4XX, 5XX                  | \*/\*                     |
+
+## GetExporterState
+
+Get exporter state
+
+### Example Usage
+
+```go
+package main
+
+import(
+	"context"
+	"os"
+	"github.com/formancehq/ledger/pkg/client/models/components"
+	"github.com/formancehq/ledger/pkg/client"
+	"github.com/formancehq/ledger/pkg/client/models/operations"
+	"log"
+)
+
+func main() {
+    ctx := context.Background()
+
+    s := client.New(
+        client.WithSecurity(components.Security{
+            ClientID: client.String(os.Getenv("FORMANCE_CLIENT_ID")),
+            ClientSecret: client.String(os.Getenv("FORMANCE_CLIENT_SECRET")),
+        }),
+    )
+
+    res, err := s.Ledger.V2.GetExporterState(ctx, operations.V2GetExporterStateRequest{
+        ExporterID: "<id>",
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+    if res.V2GetExporterStateResponse != nil {
+        // handle response
+    }
+}
+```
+
+### Parameters
+
+| Parameter                                                                                    | Type                                                                                         | Required                                                                                     | Description                                                                                  |
+| -------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `ctx`                                                                                        | [context.Context](https://pkg.go.dev/context#Context)                                        | :heavy_check_mark:                                                                           | The context to use for the request.                                                          |
+| `request`                                                                                    | [operations.V2GetExporterStateRequest](../../models/operations/v2getexporterstaterequest.md) | :heavy_check_mark:                                                                           | The request object to use for the request.                                                   |
+| `opts`                                                                                       | [][operations.Option](../../models/operations/option.md)                                     | :heavy_minus_sign:                                                                           | The options for this request.                                                                |
+
+### Response
+
+**[*operations.V2GetExporterStateResponse](../../models/operations/v2getexporterstateresponse.md), error**
+
+### Errors
+
+| Error Type                | Status Code               | Content Type              |
+| ------------------------- | ------------------------- | ------------------------- |
+| sdkerrors.V2ErrorResponse | default                   | application/json          |
+| sdkerrors.SDKError        | 4XX, 5XX                  | \*/\*                     |
+
+## UpdateExporter
+
+Update exporter
+
+### Example Usage
+
+```go
+package main
+
+import(
+	"context"
+	"os"
+	"github.com/formancehq/ledger/pkg/client/models/components"
+	"github.com/formancehq/ledger/pkg/client"
+	"github.com/formancehq/ledger/pkg/client/models/operations"
+	"log"
+)
+
+func main() {
+    ctx := context.Background()
+
+    s := client.New(
+        client.WithSecurity(components.Security{
+            ClientID: client.String(os.Getenv("FORMANCE_CLIENT_ID")),
+            ClientSecret: client.String(os.Getenv("FORMANCE_CLIENT_SECRET")),
+        }),
+    )
+
+    res, err := s.Ledger.V2.UpdateExporter(ctx, operations.V2UpdateExporterRequest{
+        ExporterID: "<id>",
+        V2ExporterConfiguration: components.V2ExporterConfiguration{
+            Driver: "<value>",
+            Config: map[string]any{
+                "key": "<value>",
+                "key1": "<value>",
+                "key2": "<value>",
+            },
+        },
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+    if res != nil {
+        // handle response
+    }
+}
+```
+
+### Parameters
+
+| Parameter                                                                                | Type                                                                                     | Required                                                                                 | Description                                                                              |
+| ---------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `ctx`                                                                                    | [context.Context](https://pkg.go.dev/context#Context)                                    | :heavy_check_mark:                                                                       | The context to use for the request.                                                      |
+| `request`                                                                                | [operations.V2UpdateExporterRequest](../../models/operations/v2updateexporterrequest.md) | :heavy_check_mark:                                                                       | The request object to use for the request.                                               |
+| `opts`                                                                                   | [][operations.Option](../../models/operations/option.md)                                 | :heavy_minus_sign:                                                                       | The options for this request.                                                            |
+
+### Response
+
+**[*operations.V2UpdateExporterResponse](../../models/operations/v2updateexporterresponse.md), error**
+
+### Errors
+
+| Error Type                | Status Code               | Content Type              |
+| ------------------------- | ------------------------- | ------------------------- |
+| sdkerrors.V2ErrorResponse | default                   | application/json          |
+| sdkerrors.SDKError        | 4XX, 5XX                  | \*/\*                     |
+
+## DeleteExporter
+
+Delete exporter
+
+### Example Usage
+
+```go
+package main
+
+import(
+	"context"
+	"os"
+	"github.com/formancehq/ledger/pkg/client/models/components"
+	"github.com/formancehq/ledger/pkg/client"
+	"github.com/formancehq/ledger/pkg/client/models/operations"
+	"log"
+)
+
+func main() {
+    ctx := context.Background()
+
+    s := client.New(
+        client.WithSecurity(components.Security{
+            ClientID: client.String(os.Getenv("FORMANCE_CLIENT_ID")),
+            ClientSecret: client.String(os.Getenv("FORMANCE_CLIENT_SECRET")),
+        }),
+    )
+
+    res, err := s.Ledger.V2.DeleteExporter(ctx, operations.V2DeleteExporterRequest{
+        ExporterID: "<id>",
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+    if res != nil {
+        // handle response
+    }
+}
+```
+
+### Parameters
+
+| Parameter                                                                                | Type                                                                                     | Required                                                                                 | Description                                                                              |
+| ---------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `ctx`                                                                                    | [context.Context](https://pkg.go.dev/context#Context)                                    | :heavy_check_mark:                                                                       | The context to use for the request.                                                      |
+| `request`                                                                                | [operations.V2DeleteExporterRequest](../../models/operations/v2deleteexporterrequest.md) | :heavy_check_mark:                                                                       | The request object to use for the request.                                               |
+| `opts`                                                                                   | [][operations.Option](../../models/operations/option.md)                                 | :heavy_minus_sign:                                                                       | The options for this request.                                                            |
+
+### Response
+
+**[*operations.V2DeleteExporterResponse](../../models/operations/v2deleteexporterresponse.md), error**
+
+### Errors
+
+| Error Type                | Status Code               | Content Type              |
+| ------------------------- | ------------------------- | ------------------------- |
+| sdkerrors.V2ErrorResponse | default                   | application/json          |
+| sdkerrors.SDKError        | 4XX, 5XX                  | \*/\*                     |
+
+## DeleteBucket
+
+Delete a bucket by marking all ledgers in the bucket as deleted (soft delete). All ledgers in the bucket will have their deleted_at field set to the current timestamp.
+
+### Example Usage
+
+```go
+package main
+
+import(
+	"context"
+	"os"
+	"github.com/formancehq/ledger/pkg/client/models/components"
+	"github.com/formancehq/ledger/pkg/client"
+	"github.com/formancehq/ledger/pkg/client/models/operations"
+	"log"
+)
+
+func main() {
+    ctx := context.Background()
+
+    s := client.New(
+        client.WithSecurity(components.Security{
+            ClientID: client.String(os.Getenv("FORMANCE_CLIENT_ID")),
+            ClientSecret: client.String(os.Getenv("FORMANCE_CLIENT_SECRET")),
+        }),
+    )
+
+    res, err := s.Ledger.V2.DeleteBucket(ctx, operations.V2DeleteBucketRequest{
+        Bucket: "<value>",
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+    if res != nil {
+        // handle response
+    }
+}
+```
+
+### Parameters
+
+| Parameter                                                                            | Type                                                                                 | Required                                                                             | Description                                                                          |
+| ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ |
+| `ctx`                                                                                | [context.Context](https://pkg.go.dev/context#Context)                                | :heavy_check_mark:                                                                   | The context to use for the request.                                                  |
+| `request`                                                                            | [operations.V2DeleteBucketRequest](../../models/operations/v2deletebucketrequest.md) | :heavy_check_mark:                                                                   | The request object to use for the request.                                           |
+| `opts`                                                                               | [][operations.Option](../../models/operations/option.md)                             | :heavy_minus_sign:                                                                   | The options for this request.                                                        |
+
+### Response
+
+**[*operations.V2DeleteBucketResponse](../../models/operations/v2deletebucketresponse.md), error**
+
+### Errors
+
+| Error Type                | Status Code               | Content Type              |
+| ------------------------- | ------------------------- | ------------------------- |
+| sdkerrors.V2ErrorResponse | default                   | application/json          |
+| sdkerrors.SDKError        | 4XX, 5XX                  | \*/\*                     |
+
+## RestoreBucket
+
+Restore a deleted bucket by unmarking all ledgers in the bucket as deleted. All ledgers in the bucket will have their deleted_at field set to NULL.
+
+### Example Usage
+
+```go
+package main
+
+import(
+	"context"
+	"os"
+	"github.com/formancehq/ledger/pkg/client/models/components"
+	"github.com/formancehq/ledger/pkg/client"
+	"github.com/formancehq/ledger/pkg/client/models/operations"
+	"log"
+)
+
+func main() {
+    ctx := context.Background()
+
+    s := client.New(
+        client.WithSecurity(components.Security{
+            ClientID: client.String(os.Getenv("FORMANCE_CLIENT_ID")),
+            ClientSecret: client.String(os.Getenv("FORMANCE_CLIENT_SECRET")),
+        }),
+    )
+
+    res, err := s.Ledger.V2.RestoreBucket(ctx, operations.V2RestoreBucketRequest{
+        Bucket: "<value>",
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+    if res != nil {
+        // handle response
+    }
+}
+```
+
+### Parameters
+
+| Parameter                                                                              | Type                                                                                   | Required                                                                               | Description                                                                            |
+| -------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `ctx`                                                                                  | [context.Context](https://pkg.go.dev/context#Context)                                  | :heavy_check_mark:                                                                     | The context to use for the request.                                                    |
+| `request`                                                                              | [operations.V2RestoreBucketRequest](../../models/operations/v2restorebucketrequest.md) | :heavy_check_mark:                                                                     | The request object to use for the request.                                             |
+| `opts`                                                                                 | [][operations.Option](../../models/operations/option.md)                               | :heavy_minus_sign:                                                                     | The options for this request.                                                          |
+
+### Response
+
+**[*operations.V2RestoreBucketResponse](../../models/operations/v2restorebucketresponse.md), error**
+
+### Errors
+
+| Error Type                | Status Code               | Content Type              |
+| ------------------------- | ------------------------- | ------------------------- |
+| sdkerrors.V2ErrorResponse | default                   | application/json          |
+| sdkerrors.SDKError        | 4XX, 5XX                  | \*/\*                     |
+
+## ListPipelines
+
+List pipelines
+
+### Example Usage
+
+```go
+package main
+
+import(
+	"context"
+	"os"
+	"github.com/formancehq/ledger/pkg/client/models/components"
+	"github.com/formancehq/ledger/pkg/client"
+	"github.com/formancehq/ledger/pkg/client/models/operations"
+	"log"
+)
+
+func main() {
+    ctx := context.Background()
+
+    s := client.New(
+        client.WithSecurity(components.Security{
+            ClientID: client.String(os.Getenv("FORMANCE_CLIENT_ID")),
+            ClientSecret: client.String(os.Getenv("FORMANCE_CLIENT_SECRET")),
+        }),
+    )
+
+    res, err := s.Ledger.V2.ListPipelines(ctx, operations.V2ListPipelinesRequest{
+        Ledger: "ledger001",
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+    if res.V2ListPipelinesResponse != nil {
+        // handle response
+    }
+}
+```
+
+### Parameters
+
+| Parameter                                                                              | Type                                                                                   | Required                                                                               | Description                                                                            |
+| -------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `ctx`                                                                                  | [context.Context](https://pkg.go.dev/context#Context)                                  | :heavy_check_mark:                                                                     | The context to use for the request.                                                    |
+| `request`                                                                              | [operations.V2ListPipelinesRequest](../../models/operations/v2listpipelinesrequest.md) | :heavy_check_mark:                                                                     | The request object to use for the request.                                             |
+| `opts`                                                                                 | [][operations.Option](../../models/operations/option.md)                               | :heavy_minus_sign:                                                                     | The options for this request.                                                          |
+
+### Response
+
+**[*operations.V2ListPipelinesResponse](../../models/operations/v2listpipelinesresponse.md), error**
+
+### Errors
+
+| Error Type                | Status Code               | Content Type              |
+| ------------------------- | ------------------------- | ------------------------- |
+| sdkerrors.V2ErrorResponse | default                   | application/json          |
+| sdkerrors.SDKError        | 4XX, 5XX                  | \*/\*                     |
+
+## CreatePipeline
+
+Create pipeline
+
+### Example Usage
+
+```go
+package main
+
+import(
+	"context"
+	"os"
+	"github.com/formancehq/ledger/pkg/client/models/components"
+	"github.com/formancehq/ledger/pkg/client"
+	"github.com/formancehq/ledger/pkg/client/models/operations"
+	"log"
+)
+
+func main() {
+    ctx := context.Background()
+
+    s := client.New(
+        client.WithSecurity(components.Security{
+            ClientID: client.String(os.Getenv("FORMANCE_CLIENT_ID")),
+            ClientSecret: client.String(os.Getenv("FORMANCE_CLIENT_SECRET")),
+        }),
+    )
+
+    res, err := s.Ledger.V2.CreatePipeline(ctx, operations.V2CreatePipelineRequest{
+        Ledger: "ledger001",
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+    if res.V2CreatePipelineResponse != nil {
+        // handle response
+    }
+}
+```
+
+### Parameters
+
+| Parameter                                                                                | Type                                                                                     | Required                                                                                 | Description                                                                              |
+| ---------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `ctx`                                                                                    | [context.Context](https://pkg.go.dev/context#Context)                                    | :heavy_check_mark:                                                                       | The context to use for the request.                                                      |
+| `request`                                                                                | [operations.V2CreatePipelineRequest](../../models/operations/v2createpipelinerequest.md) | :heavy_check_mark:                                                                       | The request object to use for the request.                                               |
+| `opts`                                                                                   | [][operations.Option](../../models/operations/option.md)                                 | :heavy_minus_sign:                                                                       | The options for this request.                                                            |
+
+### Response
+
+**[*operations.V2CreatePipelineResponse](../../models/operations/v2createpipelineresponse.md), error**
+
+### Errors
+
+| Error Type                | Status Code               | Content Type              |
+| ------------------------- | ------------------------- | ------------------------- |
+| sdkerrors.V2ErrorResponse | default                   | application/json          |
+| sdkerrors.SDKError        | 4XX, 5XX                  | \*/\*                     |
+
+## GetPipelineState
+
+Get pipeline state
+
+### Example Usage
+
+```go
+package main
+
+import(
+	"context"
+	"os"
+	"github.com/formancehq/ledger/pkg/client/models/components"
+	"github.com/formancehq/ledger/pkg/client"
+	"github.com/formancehq/ledger/pkg/client/models/operations"
+	"log"
+)
+
+func main() {
+    ctx := context.Background()
+
+    s := client.New(
+        client.WithSecurity(components.Security{
+            ClientID: client.String(os.Getenv("FORMANCE_CLIENT_ID")),
+            ClientSecret: client.String(os.Getenv("FORMANCE_CLIENT_SECRET")),
+        }),
+    )
+
+    res, err := s.Ledger.V2.GetPipelineState(ctx, operations.V2GetPipelineStateRequest{
+        Ledger: "ledger001",
+        PipelineID: "<id>",
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+    if res.V2GetPipelineStateResponse != nil {
+        // handle response
+    }
+}
+```
+
+### Parameters
+
+| Parameter                                                                                    | Type                                                                                         | Required                                                                                     | Description                                                                                  |
+| -------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `ctx`                                                                                        | [context.Context](https://pkg.go.dev/context#Context)                                        | :heavy_check_mark:                                                                           | The context to use for the request.                                                          |
+| `request`                                                                                    | [operations.V2GetPipelineStateRequest](../../models/operations/v2getpipelinestaterequest.md) | :heavy_check_mark:                                                                           | The request object to use for the request.                                                   |
+| `opts`                                                                                       | [][operations.Option](../../models/operations/option.md)                                     | :heavy_minus_sign:                                                                           | The options for this request.                                                                |
+
+### Response
+
+**[*operations.V2GetPipelineStateResponse](../../models/operations/v2getpipelinestateresponse.md), error**
+
+### Errors
+
+| Error Type                | Status Code               | Content Type              |
+| ------------------------- | ------------------------- | ------------------------- |
+| sdkerrors.V2ErrorResponse | default                   | application/json          |
+| sdkerrors.SDKError        | 4XX, 5XX                  | \*/\*                     |
+
+## DeletePipeline
+
+Delete pipeline
+
+### Example Usage
+
+```go
+package main
+
+import(
+	"context"
+	"os"
+	"github.com/formancehq/ledger/pkg/client/models/components"
+	"github.com/formancehq/ledger/pkg/client"
+	"github.com/formancehq/ledger/pkg/client/models/operations"
+	"log"
+)
+
+func main() {
+    ctx := context.Background()
+
+    s := client.New(
+        client.WithSecurity(components.Security{
+            ClientID: client.String(os.Getenv("FORMANCE_CLIENT_ID")),
+            ClientSecret: client.String(os.Getenv("FORMANCE_CLIENT_SECRET")),
+        }),
+    )
+
+    res, err := s.Ledger.V2.DeletePipeline(ctx, operations.V2DeletePipelineRequest{
+        Ledger: "ledger001",
+        PipelineID: "<id>",
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+    if res != nil {
+        // handle response
+    }
+}
+```
+
+### Parameters
+
+| Parameter                                                                                | Type                                                                                     | Required                                                                                 | Description                                                                              |
+| ---------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `ctx`                                                                                    | [context.Context](https://pkg.go.dev/context#Context)                                    | :heavy_check_mark:                                                                       | The context to use for the request.                                                      |
+| `request`                                                                                | [operations.V2DeletePipelineRequest](../../models/operations/v2deletepipelinerequest.md) | :heavy_check_mark:                                                                       | The request object to use for the request.                                               |
+| `opts`                                                                                   | [][operations.Option](../../models/operations/option.md)                                 | :heavy_minus_sign:                                                                       | The options for this request.                                                            |
+
+### Response
+
+**[*operations.V2DeletePipelineResponse](../../models/operations/v2deletepipelineresponse.md), error**
+
+### Errors
+
+| Error Type                | Status Code               | Content Type              |
+| ------------------------- | ------------------------- | ------------------------- |
+| sdkerrors.V2ErrorResponse | default                   | application/json          |
+| sdkerrors.SDKError        | 4XX, 5XX                  | \*/\*                     |
+
+## ResetPipeline
+
+Reset pipeline
+
+### Example Usage
+
+```go
+package main
+
+import(
+	"context"
+	"os"
+	"github.com/formancehq/ledger/pkg/client/models/components"
+	"github.com/formancehq/ledger/pkg/client"
+	"github.com/formancehq/ledger/pkg/client/models/operations"
+	"log"
+)
+
+func main() {
+    ctx := context.Background()
+
+    s := client.New(
+        client.WithSecurity(components.Security{
+            ClientID: client.String(os.Getenv("FORMANCE_CLIENT_ID")),
+            ClientSecret: client.String(os.Getenv("FORMANCE_CLIENT_SECRET")),
+        }),
+    )
+
+    res, err := s.Ledger.V2.ResetPipeline(ctx, operations.V2ResetPipelineRequest{
+        Ledger: "ledger001",
+        PipelineID: "<id>",
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+    if res != nil {
+        // handle response
+    }
+}
+```
+
+### Parameters
+
+| Parameter                                                                              | Type                                                                                   | Required                                                                               | Description                                                                            |
+| -------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `ctx`                                                                                  | [context.Context](https://pkg.go.dev/context#Context)                                  | :heavy_check_mark:                                                                     | The context to use for the request.                                                    |
+| `request`                                                                              | [operations.V2ResetPipelineRequest](../../models/operations/v2resetpipelinerequest.md) | :heavy_check_mark:                                                                     | The request object to use for the request.                                             |
+| `opts`                                                                                 | [][operations.Option](../../models/operations/option.md)                               | :heavy_minus_sign:                                                                     | The options for this request.                                                          |
+
+### Response
+
+**[*operations.V2ResetPipelineResponse](../../models/operations/v2resetpipelineresponse.md), error**
+
+### Errors
+
+| Error Type                | Status Code               | Content Type              |
+| ------------------------- | ------------------------- | ------------------------- |
+| sdkerrors.V2ErrorResponse | default                   | application/json          |
+| sdkerrors.SDKError        | 4XX, 5XX                  | \*/\*                     |
+
+## StartPipeline
+
+Start pipeline
+
+### Example Usage
+
+```go
+package main
+
+import(
+	"context"
+	"os"
+	"github.com/formancehq/ledger/pkg/client/models/components"
+	"github.com/formancehq/ledger/pkg/client"
+	"github.com/formancehq/ledger/pkg/client/models/operations"
+	"log"
+)
+
+func main() {
+    ctx := context.Background()
+
+    s := client.New(
+        client.WithSecurity(components.Security{
+            ClientID: client.String(os.Getenv("FORMANCE_CLIENT_ID")),
+            ClientSecret: client.String(os.Getenv("FORMANCE_CLIENT_SECRET")),
+        }),
+    )
+
+    res, err := s.Ledger.V2.StartPipeline(ctx, operations.V2StartPipelineRequest{
+        Ledger: "ledger001",
+        PipelineID: "<id>",
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+    if res != nil {
+        // handle response
+    }
+}
+```
+
+### Parameters
+
+| Parameter                                                                              | Type                                                                                   | Required                                                                               | Description                                                                            |
+| -------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `ctx`                                                                                  | [context.Context](https://pkg.go.dev/context#Context)                                  | :heavy_check_mark:                                                                     | The context to use for the request.                                                    |
+| `request`                                                                              | [operations.V2StartPipelineRequest](../../models/operations/v2startpipelinerequest.md) | :heavy_check_mark:                                                                     | The request object to use for the request.                                             |
+| `opts`                                                                                 | [][operations.Option](../../models/operations/option.md)                               | :heavy_minus_sign:                                                                     | The options for this request.                                                          |
+
+### Response
+
+**[*operations.V2StartPipelineResponse](../../models/operations/v2startpipelineresponse.md), error**
+
+### Errors
+
+| Error Type                | Status Code               | Content Type              |
+| ------------------------- | ------------------------- | ------------------------- |
+| sdkerrors.V2ErrorResponse | default                   | application/json          |
+| sdkerrors.SDKError        | 4XX, 5XX                  | \*/\*                     |
+
+## StopPipeline
+
+Stop pipeline
+
+### Example Usage
+
+```go
+package main
+
+import(
+	"context"
+	"os"
+	"github.com/formancehq/ledger/pkg/client/models/components"
+	"github.com/formancehq/ledger/pkg/client"
+	"github.com/formancehq/ledger/pkg/client/models/operations"
+	"log"
+)
+
+func main() {
+    ctx := context.Background()
+
+    s := client.New(
+        client.WithSecurity(components.Security{
+            ClientID: client.String(os.Getenv("FORMANCE_CLIENT_ID")),
+            ClientSecret: client.String(os.Getenv("FORMANCE_CLIENT_SECRET")),
+        }),
+    )
+
+    res, err := s.Ledger.V2.StopPipeline(ctx, operations.V2StopPipelineRequest{
+        Ledger: "ledger001",
+        PipelineID: "<id>",
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+    if res != nil {
+        // handle response
+    }
+}
+```
+
+### Parameters
+
+| Parameter                                                                            | Type                                                                                 | Required                                                                             | Description                                                                          |
+| ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ |
+| `ctx`                                                                                | [context.Context](https://pkg.go.dev/context#Context)                                | :heavy_check_mark:                                                                   | The context to use for the request.                                                  |
+| `request`                                                                            | [operations.V2StopPipelineRequest](../../models/operations/v2stoppipelinerequest.md) | :heavy_check_mark:                                                                   | The request object to use for the request.                                           |
+| `opts`                                                                               | [][operations.Option](../../models/operations/option.md)                             | :heavy_minus_sign:                                                                   | The options for this request.                                                        |
+
+### Response
+
+**[*operations.V2StopPipelineResponse](../../models/operations/v2stoppipelineresponse.md), error**
+
+### Errors
+
+| Error Type                | Status Code               | Content Type              |
+| ------------------------- | ------------------------- | ------------------------- |
+| sdkerrors.V2ErrorResponse | default                   | application/json          |
+| sdkerrors.SDKError        | 4XX, 5XX                  | \*/\*                     |

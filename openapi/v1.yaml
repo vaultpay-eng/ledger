@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: Ledger API
   contact: {}
-  version: LEDGER_VERSION
+  version: v1
 paths:
   /_info:
     get:
@@ -90,7 +90,7 @@ paths:
             additionalProperties: true
           example: metadata[key]=value1&metadata[a.nested.key]=value2
       responses:
-        '200':
+        '204':
           description: OK
           headers:
             Count:
@@ -131,7 +131,6 @@ paths:
             format: int64
             minimum: 1
             maximum: 1000
-            default: 15
         - name: page_size
           x-speakeasy-ignore: true
           in: query
@@ -144,7 +143,6 @@ paths:
             format: int64
             minimum: 1
             maximum: 1000
-            default: 15
           deprecated: true
         - name: after
           in: query
@@ -352,6 +350,12 @@ paths:
       responses:
         '204':
           description: No Content
+          headers:
+            Idempotency-Hit:
+              description: Indicates that the request was processed using an idempotency key that was already used
+              schema:
+                type: string
+                example: "true"
           content: {}
         default:
           description: Error
@@ -656,7 +660,6 @@ paths:
             format: int64
             minimum: 1
             maximum: 1000
-            default: 15
         - name: page_size
           x-speakeasy-ignore: true
           in: query
@@ -669,7 +672,6 @@ paths:
             format: int64
             minimum: 1
             maximum: 1000
-            default: 15
           deprecated: true
         - name: after
           in: query
@@ -849,6 +851,12 @@ paths:
       responses:
         '200':
           description: OK
+          headers:
+            Idempotency-Hit:
+              description: Indicates that the request was processed using an idempotency key that was already used
+              schema:
+                type: string
+                example: "true"
           content:
             application/json:
               schema:
@@ -925,6 +933,7 @@ paths:
             minimum: 0
             example: 1234
       requestBody:
+        required: true
         description: metadata
         content:
           application/json:
@@ -933,6 +942,12 @@ paths:
       responses:
         '204':
           description: No Content
+          headers:
+            Idempotency-Hit:
+              description: Indicates that the request was processed using an idempotency key that was already used
+              schema:
+                type: string
+                example: "true"
           content: {}
         default:
           description: Error
@@ -975,6 +990,12 @@ paths:
       responses:
         '201':
           description: OK
+          headers:
+            Idempotency-Hit:
+              description: Indicates that the request was processed using an idempotency key that was already used
+              schema:
+                type: string
+                example: "true"
           content:
             application/json:
               schema:
@@ -1055,7 +1076,6 @@ paths:
             format: int64
             minimum: 1
             maximum: 1000
-            default: 15
         - name: after
           in: query
           description: >-
@@ -1175,7 +1195,6 @@ paths:
             format: int64
             minimum: 1
             maximum: 1000
-            default: 15
         - name: page_size
           x-speakeasy-ignore: true
           in: query
@@ -1188,7 +1207,6 @@ paths:
             format: int64
             minimum: 1
             maximum: 1000
-            default: 15
           deprecated: true
         - name: after
           in: query
@@ -1300,8 +1318,8 @@ components:
       type: oauth2
       flows:
         clientCredentials:
-          tokenUrl: '/api/auth/oauth/token'
-          refreshUrl: '/api/auth/oauth/token'
+          tokenUrl: '/oauth/token'
+          refreshUrl: '/oauth/token'
           scopes: { }
 
   schemas:
@@ -1852,8 +1870,10 @@ components:
         - COMPILATION_FAILED
         - METADATA_OVERRIDE
         - NOT_FOUND
+        - TIMEOUT
       example: INSUFFICIENT_FUND
     LedgerInfoResponse:
+      type: object
       properties:
         data:
           $ref: '#/components/schemas/LedgerInfo'
@@ -1874,8 +1894,7 @@ components:
       type: object
       properties:
         version:
-          type: integer
-          format: int64
+          type: string
           minimum: 0
           example: 11
         name:
