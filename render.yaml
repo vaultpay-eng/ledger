@@ -1,6 +1,12 @@
 # =============================================================================
 # VaultPay - Formance Ledger Production on Render
 # =============================================================================
+#
+# The console requires the Caddy gateway for API path routing.
+# Console → Gateway (/api/ledger/*) → Ledger (/v2/*)
+#
+# Add the gateway/ directory (Dockerfile + Caddyfile) to your ledger fork repo.
+# =============================================================================
 
 services:
   # Ledger API Server (stateless - handles HTTP requests)
@@ -64,6 +70,21 @@ services:
         value: "5m"
     region: ohio
 
+  # Gateway (Caddy reverse proxy - required for console API routing)
+  - type: web
+    name: formance-gateway-prod
+    runtime: docker
+    dockerfilePath: ./gateway/Dockerfile
+    dockerContext: ./gateway
+    plan: starter
+    healthCheckPath: /versions
+    envVars:
+      - key: LEDGER_HOST
+        value: "formance-ledger-prod:3068"
+      - key: PORT
+        value: "8080"
+    region: ohio
+
   # Console UI (web dashboard for ledger inspection)
   - type: web
     name: formance-ledger-dashboard
@@ -77,11 +98,11 @@ services:
       - key: MICRO_STACK
         value: "1"
       - key: API_URL
-        value: "https://formance-ledger-prod.onrender.com/api"
+        value: "https://formance-gateway-prod.onrender.com/api"
       - key: COOKIE_SECRET
         sync: false
       - key: COOKIE_DOMAIN
-        value: "onrender.com"
+        value: "formance-ledger-dashboard.onrender.com"
     region: ohio
 
 databases:
