@@ -1,36 +1,87 @@
+# =============================================================================
+# VaultPay - Formance Ledger Production on Render
+# =============================================================================
+
 services:
+  # Ledger API Server (stateless - handles HTTP requests)
   - type: web
-    name: ledger-formance
+    name: formance-ledger-prod
     runtime: image
     image:
-      url: ghcr.io/formancehq/ledger:v2.0.19
+      url: ghcr.io/formancehq/ledger:v2.3.0
     plan: standard
+    dockerCommand: ledger serve
+    healthCheckPath: /_healthcheck
     envVars:
-    - key: POSTGRES_URI
-      fromDatabase:
-        name: ledger-database
-        property: connectionString
-    - key: PUBLISHER_HTTP_ENABLED
-      value: "true"
-    - key: PUBLISHER_TOPIC_MAPPING
-      value: "*:https://hkdk.events/csfmmjqrvy1n8e"
+      - key: POSTGRES_URI
+        fromDatabase:
+          name: ledger-database
+          property: connectionString
+      - key: POSTGRES_MAX_OPEN_CONNS
+        value: "40"
+      - key: POSTGRES_MAX_IDLE_CONNS
+        value: "40"
+      - key: POSTGRES_CONN_MAX_IDLE_TIME
+        value: "5m"
+      - key: PUBLISHER_HTTP_ENABLED
+        value: "true"
+      - key: PUBLISHER_TOPIC_MAPPING
+        value: "*:https://hkdk.events/csfmmjqrvy1n8e"
+      - key: BIND
+        value: "0.0.0.0:3068"
+      - key: PORT
+        value: "3068"
+      - key: AUTO_UPGRADE
+        value: "true"
+      - key: EXPERIMENTAL_FEATURES
+        value: "true"
+      - key: BULK_PARALLEL
+        value: "10"
+      - key: EXPERIMENTAL_NUMSCRIPT_INTERPRETER
+        value: "true"
+      - key: EXPERIMENTAL_NUMSCRIPT_INTERPRETER_FLAGS
+        value: "experimental-overdraft-function experimental-get-asset-function experimental-get-amount-function experimental-oneof experimental-account-interpolation experimental-mid-script-function-call experimental-asset-colors"
     region: ohio
-    
-  - type: web
-    name: ledger-formance-dev
+
+  # Ledger Worker (block hashing, log exports, async ops)
+  - type: worker
+    name: formance-worker-prod
     runtime: image
     image:
-      url: ghcr.io/formancehq/ledger:v2.0.19
+      url: ghcr.io/formancehq/ledger:v2.3.0
+    plan: starter
+    dockerCommand: ledger worker
+    envVars:
+      - key: POSTGRES_URI
+        fromDatabase:
+          name: ledger-database
+          property: connectionString
+      - key: POSTGRES_MAX_OPEN_CONNS
+        value: "40"
+      - key: POSTGRES_MAX_IDLE_CONNS
+        value: "40"
+      - key: POSTGRES_CONN_MAX_IDLE_TIME
+        value: "5m"
+    region: ohio
+
+  # Console UI (web dashboard for ledger inspection)
+  - type: web
+    name: formance-ledger-dashboard
+    runtime: image
+    image:
+      url: ghcr.io/formancehq/console-v3:v1.17.0
     plan: starter
     envVars:
-    - key: POSTGRES_URI
-      fromDatabase:
-        name: ledger-db-dev
-        property: connectionString
-    - key: PUBLISHER_HTTP_ENABLED
-      value: "true"
-    - key: PUBLISHER_TOPIC_MAPPING
-      value: "*:https://hkdk.events/csfmmjqrvy1n8e"
+      - key: PORT
+        value: "3000"
+      - key: MICRO_STACK
+        value: "1"
+      - key: API_URL
+        value: "https://formance-ledger-prod.onrender.com/api"
+      - key: COOKIE_SECRET
+        sync: false
+      - key: COOKIE_DOMAIN
+        value: "onrender.com"
     region: ohio
 
 databases:
@@ -40,11 +91,4 @@ databases:
     postgresMajorVersion: "16"
     user: ledger
     region: ohio
-    ipAllowList: [] # private connection only
-  - name: ledger-db-dev
-    plan: basic-1gb
-    databaseName: ledger_db_dev
-    postgresMajorVersion: "16"
-    user: ledger
-    region: ohio
-    ipAllowList: [] # private connection only
+    ipAllowList: []
