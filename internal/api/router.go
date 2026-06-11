@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
@@ -13,11 +14,12 @@ import (
 	"go.opentelemetry.io/otel/trace"
 	nooptracer "go.opentelemetry.io/otel/trace/noop"
 
-	"github.com/formancehq/go-libs/v4/api"
-	"github.com/formancehq/go-libs/v4/auth"
-	"github.com/formancehq/go-libs/v4/bun/bunpaginate"
-	"github.com/formancehq/go-libs/v4/otlp"
-	"github.com/formancehq/go-libs/v4/service"
+	"github.com/formancehq/go-libs/v5/pkg/audit/httpaudit"
+	"github.com/formancehq/go-libs/v5/pkg/authn/jwt"
+	"github.com/formancehq/go-libs/v5/pkg/observe"
+	"github.com/formancehq/go-libs/v5/pkg/storage/bun/paginate"
+	"github.com/formancehq/go-libs/v5/pkg/transport/api"
+	"github.com/formancehq/go-libs/v5/pkg/transport/httpserver"
 
 	"github.com/formancehq/ledger/internal/api/bulking"
 	"github.com/formancehq/ledger/internal/api/common"
@@ -30,7 +32,8 @@ import (
 // todo: refine textual errors
 func NewRouter(
 	systemController system.Controller,
-	authenticator auth.Authenticator,
+	authenticator jwt.Authenticator,
+	publisher message.Publisher,
 	version string,
 	debug bool,
 	opts ...RouterOption,
@@ -58,7 +61,8 @@ func NewRouter(
 		}).Handler,
 		common.LogID(),
 		middleware.RequestLogger(api.NewLogFormatter()),
-		service.OTLPMiddleware("ledger", debug),
+		httpserver.OTLPMiddleware("ledger", debug),
+		httpaudit.Middleware(publisher, auditEventTopic, auditAppName, nil, routerOptions.auditHTTPOptions...),
 		otelchimetric.NewRequestDurationMillis(baseCfg),
 		otelchimetric.NewRequestInFlight(baseCfg),
 		otelchimetric.NewResponseSizeBytes(baseCfg),
@@ -76,7 +80,7 @@ func NewRouter(
 							middleware.PrintPrettyStack(rvr)
 						}
 
-						otlp.RecordError(r.Context(), fmt.Errorf("%s", rvr))
+						observe.RecordError(r.Context(), fmt.Errorf("%s", rvr))
 
 						w.WriteHeader(http.StatusInternalServerError)
 					}
@@ -98,6 +102,7 @@ func NewRouter(
 		v2.WithDefaultBulkHandlerFactories(routerOptions.bulkMaxSize),
 		v2.WithPaginationConfig(routerOptions.paginationConfig),
 		v2.WithExporters(routerOptions.exporters),
+		v2.WithExperimentalFeatures(routerOptions.experimentalFeatures),
 	)
 	mux.Handle("/v2*", http.StripPrefix("/v2", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		chi.RouteContext(r.Context()).Reset()
@@ -109,18 +114,21 @@ func NewRouter(
 		version,
 		debug,
 		v1.WithTracer(routerOptions.tracer),
+		v1.WithExperimentalFeatures(routerOptions.experimentalFeatures),
 	))
 
 	return mux
 }
 
 type routerOptions struct {
-	tracer           trace.Tracer
-	meterProvider    metric.MeterProvider
-	bulkMaxSize      int
-	bulkerFactory    bulking.BulkerFactory
-	paginationConfig storagecommon.PaginationConfig
-	exporters        bool
+	tracer               trace.Tracer
+	meterProvider        metric.MeterProvider
+	bulkMaxSize          int
+	bulkerFactory        bulking.BulkerFactory
+	paginationConfig     storagecommon.PaginationConfig
+	exporters            bool
+	experimentalFeatures []string
+	auditHTTPOptions     []httpaudit.HTTPOption
 }
 
 type RouterOption func(ro *routerOptions)
@@ -155,6 +163,18 @@ func WithExporters(v bool) RouterOption {
 	}
 }
 
+func WithExperimentalFeatures(features []string) RouterOption {
+	return func(ro *routerOptions) {
+		ro.experimentalFeatures = features
+	}
+}
+
+func WithAuditHTTPOptions(options ...httpaudit.HTTPOption) RouterOption {
+	return func(ro *routerOptions) {
+		ro.auditHTTPOptions = options
+	}
+}
+
 func WithMeterProvider(mp metric.MeterProvider) RouterOption {
 	return func(ro *routerOptions) {
 		ro.meterProvider = mp
@@ -166,8 +186,8 @@ var defaultRouterOptions = []RouterOption{
 	WithMeterProvider(noopmetrics.MeterProvider{}),
 	WithBulkMaxSize(DefaultBulkMaxSize),
 	WithPaginationConfiguration(storagecommon.PaginationConfig{
-		MaxPageSize:     bunpaginate.MaxPageSize,
-		DefaultPageSize: bunpaginate.QueryDefaultPageSize,
+		MaxPageSize:     paginate.MaxPageSize,
+		DefaultPageSize: paginate.QueryDefaultPageSize,
 	}),
 }
 

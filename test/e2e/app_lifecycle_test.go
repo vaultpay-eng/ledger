@@ -15,14 +15,14 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/uptrace/bun"
 
-	"github.com/formancehq/go-libs/v4/bun/bunconnect"
-	"github.com/formancehq/go-libs/v4/logging"
-	"github.com/formancehq/go-libs/v4/pointer"
-	. "github.com/formancehq/go-libs/v4/testing/deferred/ginkgo"
-	"github.com/formancehq/go-libs/v4/testing/platform/natstesting"
-	"github.com/formancehq/go-libs/v4/testing/platform/pgtesting"
-	"github.com/formancehq/go-libs/v4/testing/testservice"
-	"github.com/formancehq/go-libs/v4/time"
+	logging "github.com/formancehq/go-libs/v5/pkg/observe/log"
+	"github.com/formancehq/go-libs/v5/pkg/storage/bun/connect"
+	. "github.com/formancehq/go-libs/v5/pkg/testing/deferred/ginkgo"
+	"github.com/formancehq/go-libs/v5/pkg/testing/platform/natstesting"
+	"github.com/formancehq/go-libs/v5/pkg/testing/platform/pgtesting"
+	"github.com/formancehq/go-libs/v5/pkg/testing/testservice"
+	"github.com/formancehq/go-libs/v5/pkg/types/pointer"
+	"github.com/formancehq/go-libs/v5/pkg/types/time"
 
 	ledger "github.com/formancehq/ledger/internal"
 	"github.com/formancehq/ledger/internal/storage"
@@ -42,8 +42,8 @@ var _ = Context("Ledger application lifecycle tests", func() {
 
 	Context("Pending transaction should be fully processed before stopping or restarting the server", func() {
 		db := UseTemplatedDatabase()
-		connectionOptions := DeferMap(db, func(from *pgtesting.Database) bunconnect.ConnectionOptions {
-			return bunconnect.ConnectionOptions{
+		connectionOptions := DeferMap(db, func(from *pgtesting.Database) connect.ConnectionOptions {
+			return connect.ConnectionOptions{
 				DatabaseSourceName: from.ConnectionOptions().DatabaseSourceName,
 				MaxOpenConns:       100,
 			}
@@ -76,15 +76,24 @@ var _ = Context("Ledger application lifecycle tests", func() {
 		})
 		When("restarting the service", func() {
 			BeforeEach(func(specContext SpecContext) {
-				testServer, err := testServer.Wait(specContext)
+				srv, err := testServer.Wait(specContext)
 				Expect(err).To(BeNil())
 
 				// Use context.Background() for the restart so the new service context
-				// is not tied to ginkgo's spec context lifecycle. This is consistent
-				// with how DeferNew starts the service initially (with context.Background()),
-				// and prevents the spec context cancellation from racing with the
-				// DeferCleanup's 10-second stop timeout.
-				Expect(testServer.Restart(context.Background())).To(BeNil())
+				// is not tied to ginkgo's spec context lifecycle.
+				Expect(srv.Restart(context.Background())).To(BeNil())
+
+				// Explicitly stop the restarted service with a generous timeout.
+				// This DeferCleanup runs before DeferNew's 10-second cleanup (LIFO),
+				// so the service is already stopped when DeferNew's cleanup fires
+				// (no-op since cancel == nil). Under CI load the full fx shutdown
+				// chain (watermill router, nats subscriber, etc.) can exceed 10s.
+				DeferCleanup(func() {
+					ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+					defer cancel()
+
+					Expect(srv.Stop(ctx)).To(Succeed())
+				})
 			})
 			It("should be ok", func() {})
 		})
@@ -208,7 +217,7 @@ var _ = Context("Ledger application lifecycle tests", func() {
 			db         = pgtesting.UsePostgresDatabase(pgServer)
 		)
 		BeforeEach(func() {
-			bunDB, err := bunconnect.OpenSQLDB(ctx, db.GetValue().ConnectionOptions())
+			bunDB, err := connect.OpenSQLDB(ctx, db.GetValue().ConnectionOptions())
 			Expect(err).To(BeNil())
 
 			Expect(system.Migrate(ctx, bunDB)).To(BeNil())

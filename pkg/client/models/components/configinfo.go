@@ -3,28 +3,36 @@
 package components
 
 type ConfigInfo struct {
-	Config  Config `json:"config"`
-	Server  string `json:"server"`
-	Version string `json:"version"`
+	Config               Config   `json:"config"`
+	Server               string   `json:"server"`
+	Version              string   `json:"version"`
+	ExperimentalFeatures []string `json:"experimentalFeatures,omitempty"`
 }
 
-func (o *ConfigInfo) GetConfig() Config {
-	if o == nil {
+func (c *ConfigInfo) GetConfig() Config {
+	if c == nil {
 		return Config{}
 	}
-	return o.Config
+	return c.Config
 }
 
-func (o *ConfigInfo) GetServer() string {
-	if o == nil {
+func (c *ConfigInfo) GetServer() string {
+	if c == nil {
 		return ""
 	}
-	return o.Server
+	return c.Server
 }
 
-func (o *ConfigInfo) GetVersion() string {
-	if o == nil {
+func (c *ConfigInfo) GetVersion() string {
+	if c == nil {
 		return ""
 	}
-	return o.Version
+	return c.Version
+}
+
+func (c *ConfigInfo) GetExperimentalFeatures() []string {
+	if c == nil {
+		return nil
+	}
+	return c.ExperimentalFeatures
 }

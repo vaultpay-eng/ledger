@@ -4,9 +4,9 @@ import (
 	_ "embed"
 	"net/http"
 
-	"github.com/formancehq/go-libs/v4/api"
-	"github.com/formancehq/go-libs/v4/bun/bunpaginate"
-	"github.com/formancehq/go-libs/v4/collectionutils"
+	"github.com/formancehq/go-libs/v5/pkg/storage/bun/paginate"
+	"github.com/formancehq/go-libs/v5/pkg/transport/api"
+	"github.com/formancehq/go-libs/v5/pkg/types/collections"
 
 	ledger "github.com/formancehq/ledger/internal"
 	"github.com/formancehq/ledger/internal/api/common"
@@ -17,9 +17,10 @@ import (
 )
 
 type ConfigInfo struct {
-	Server  string        `json:"server"`
-	Version string        `json:"version"`
-	Config  *LedgerConfig `json:"config"`
+	Server               string        `json:"server"`
+	Version              string        `json:"version"`
+	Config               *LedgerConfig `json:"config"`
+	ExperimentalFeatures []string      `json:"experimentalFeatures"`
 }
 
 type LedgerConfig struct {
@@ -32,7 +33,7 @@ type LedgerStorage struct {
 	Ledgers []string `json:"ledgers"`
 }
 
-func GetInfo(systemController system.Controller, version string) func(w http.ResponseWriter, r *http.Request) {
+func GetInfo(systemController system.Controller, version string, experimentalFeatures []string) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		ledgerNames := make([]string, 0)
@@ -40,8 +41,8 @@ func GetInfo(systemController system.Controller, version string) func(w http.Res
 			PageSize: 100,
 		},
 			systemController.ListLedgers,
-			func(cursor *bunpaginate.Cursor[ledger.Ledger]) error {
-				ledgerNames = append(ledgerNames, collectionutils.Map(cursor.Data, func(from ledger.Ledger) string {
+			func(cursor *paginate.Cursor[ledger.Ledger]) error {
+				ledgerNames = append(ledgerNames, collections.Map(cursor.Data, func(from ledger.Ledger) string {
 					return from.Name
 				})...)
 				return nil
@@ -61,6 +62,7 @@ func GetInfo(systemController system.Controller, version string) func(w http.Res
 					Ledgers: ledgerNames,
 				},
 			},
+			ExperimentalFeatures: experimentalFeatures,
 		})
 	}
 }

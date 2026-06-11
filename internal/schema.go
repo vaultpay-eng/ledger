@@ -5,13 +5,13 @@ import (
 
 	"github.com/uptrace/bun"
 
-	"github.com/formancehq/go-libs/v4/time"
+	"github.com/formancehq/go-libs/v5/pkg/types/time"
 )
 
 type SchemaData struct {
 	Chart        ChartOfAccounts      `json:"chart" bun:"chart"`
-	Transactions TransactionTemplates `json:"transactions" bun:"transactions"`
-	Queries      QueryTemplates       `json:"queries" bun:"queries"`
+	Transactions TransactionTemplates `json:"transactions,omitempty" bun:"transactions"`
+	Queries      QueryTemplates       `json:"queries,omitempty" bun:"queries"`
 }
 
 type Schema struct {

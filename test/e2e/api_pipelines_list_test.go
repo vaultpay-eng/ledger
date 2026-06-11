@@ -8,11 +8,11 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/formancehq/go-libs/v4/logging"
-	. "github.com/formancehq/go-libs/v4/testing/deferred/ginkgo"
-	"github.com/formancehq/go-libs/v4/testing/platform/natstesting"
-	"github.com/formancehq/go-libs/v4/testing/platform/pgtesting"
-	"github.com/formancehq/go-libs/v4/testing/testservice"
+	logging "github.com/formancehq/go-libs/v5/pkg/observe/log"
+	. "github.com/formancehq/go-libs/v5/pkg/testing/deferred/ginkgo"
+	"github.com/formancehq/go-libs/v5/pkg/testing/platform/natstesting"
+	"github.com/formancehq/go-libs/v5/pkg/testing/platform/pgtesting"
+	"github.com/formancehq/go-libs/v5/pkg/testing/testservice"
 
 	"github.com/formancehq/ledger/pkg/client/models/components"
 	"github.com/formancehq/ledger/pkg/client/models/operations"
@@ -48,7 +48,7 @@ var _ = Context("Pipelines API tests", func() {
 	BeforeEach(func(specContext SpecContext) {
 		for range countExporters {
 			// Create an exporter
-			exporter, err := Wait(specContext, DeferClient(testServer)).Ledger.V2.CreateExporter(ctx, components.V2ExporterConfiguration{
+			exporter, err := Wait(specContext, DeferClient(testServer)).Ledger.V2.CreateExporter(ctx, components.V2CreateExporterRequest{
 				Driver: "http",
 				Config: map[string]any{
 					"url": "http://localhost:8080",
@@ -82,6 +82,6 @@ var _ = Context("Pipelines API tests", func() {
 			Ledger: "default",
 		})
 		Expect(err).To(BeNil())
-		Expect(pipelines.V2ListPipelinesResponse.Cursor.Data).To(HaveLen(countExporters))
+		Expect(pipelines.V2PipelinesCursorResponse.Cursor.Data).To(HaveLen(countExporters))
 	})
 })

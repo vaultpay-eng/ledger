@@ -8,8 +8,8 @@ import (
 	"go.opentelemetry.io/otel/trace"
 	nooptracer "go.opentelemetry.io/otel/trace/noop"
 
-	"github.com/formancehq/go-libs/v4/auth"
-	"github.com/formancehq/go-libs/v4/bun/bunpaginate"
+	"github.com/formancehq/go-libs/v5/pkg/authn/jwt"
+	"github.com/formancehq/go-libs/v5/pkg/storage/bun/paginate"
 
 	"github.com/formancehq/ledger/internal/api/bulking"
 	"github.com/formancehq/ledger/internal/api/common"
@@ -28,7 +28,7 @@ import (
 // endpoints are mounted is controlled via RouterOption arguments.
 func NewRouter(
 	systemController systemcontroller.Controller,
-	authenticator auth.Authenticator,
+	authenticator jwt.Authenticator,
 	version string,
 	opts ...RouterOption,
 ) chi.Router {
@@ -40,9 +40,9 @@ func NewRouter(
 	router := chi.NewMux()
 
 	router.Group(func(router chi.Router) {
-		router.Use(auth.Middleware(authenticator))
+		router.Use(jwt.Middleware(authenticator))
 
-		router.Get("/_info", v1.GetInfo(systemController, version))
+		router.Get("/_info", v1.GetInfo(systemController, version, routerOptions.experimentalFeatures))
 
 		router.Route("/_", func(router chi.Router) {
 			if routerOptions.exporters {
@@ -143,6 +143,7 @@ type routerOptions struct {
 	bulkHandlerFactories map[string]bulking.HandlerFactory
 	paginationConfig     storagecommon.PaginationConfig
 	exporters            bool
+	experimentalFeatures []string
 }
 
 type RouterOption func(ro *routerOptions)
@@ -177,6 +178,12 @@ func WithExporters(v bool) RouterOption {
 	}
 }
 
+func WithExperimentalFeatures(features []string) RouterOption {
+	return func(ro *routerOptions) {
+		ro.experimentalFeatures = features
+	}
+}
+
 func WithDefaultBulkHandlerFactories(bulkMaxSize int) RouterOption {
 	return WithBulkHandlerFactories(map[string]bulking.HandlerFactory{
 		"application/json": bulking.NewJSONBulkHandlerFactory(bulkMaxSize),
@@ -190,7 +197,7 @@ var defaultRouterOptions = []RouterOption{
 	WithBulkerFactory(bulking.NewDefaultBulkerFactory()),
 	WithDefaultBulkHandlerFactories(100),
 	WithPaginationConfig(storagecommon.PaginationConfig{
-		DefaultPageSize: bunpaginate.QueryDefaultPageSize,
-		MaxPageSize:     bunpaginate.MaxPageSize,
+		DefaultPageSize: paginate.QueryDefaultPageSize,
+		MaxPageSize:     paginate.MaxPageSize,
 	}),
 }

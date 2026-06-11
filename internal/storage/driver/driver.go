@@ -12,10 +12,10 @@ import (
 	"go.opentelemetry.io/otel/trace"
 	"go.opentelemetry.io/otel/trace/noop"
 
-	"github.com/formancehq/go-libs/v4/bun/bunpaginate"
-	"github.com/formancehq/go-libs/v4/logging"
-	"github.com/formancehq/go-libs/v4/metadata"
-	"github.com/formancehq/go-libs/v4/platform/postgres"
+	logging "github.com/formancehq/go-libs/v5/pkg/observe/log"
+	"github.com/formancehq/go-libs/v5/pkg/storage/bun/paginate"
+	"github.com/formancehq/go-libs/v5/pkg/storage/postgres"
+	"github.com/formancehq/go-libs/v5/pkg/types/metadata"
 
 	ledger "github.com/formancehq/ledger/internal"
 	"github.com/formancehq/ledger/internal/storage/bucket"
@@ -42,16 +42,9 @@ func (d *Driver) CreateLedger(ctx context.Context, l *ledger.Ledger) (*ledgersto
 
 	var ret *ledgerstore.Store
 	err := d.db.RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
-		systemStore := d.systemStoreFactory.Create(tx)
-
-		if err := systemStore.CreateLedger(ctx, l); err != nil {
-			if errors.Is(postgres.ResolveError(err), postgres.ErrConstraintsFailed{}) {
-				return systemstore.ErrLedgerAlreadyExists
-			}
-			return postgres.ResolveError(err)
-		}
-
 		b := d.bucketFactory.Create(l.Bucket)
+
+		// Bring the bucket up to date before inserting the _system.ledgers row.
 		isInitialized, err := b.IsInitialized(ctx, tx)
 		if err != nil {
 			return fmt.Errorf("checking if bucket is initialized: %w", err)
@@ -65,17 +58,31 @@ func (d *Driver) CreateLedger(ctx context.Context, l *ledger.Ledger) (*ledgersto
 			if !upToDate {
 				return ErrBucketOutdated
 			}
-
-			if err := b.AddLedger(ctx, tx, *l); err != nil {
-				return fmt.Errorf("adding ledger to bucket: %w", err)
-			}
 		} else {
 			if err := b.Migrate(ctx, tx); err != nil {
 				return fmt.Errorf("migrating bucket: %w", err)
 			}
 		}
 
+		systemStore := d.systemStoreFactory.Create(tx)
+		if err := systemStore.CreateLedger(ctx, l); err != nil {
+			if errors.Is(postgres.ResolveError(err), postgres.ErrConstraintsFailed{}) {
+				return systemstore.ErrLedgerAlreadyExists
+			}
+			return postgres.ResolveError(err)
+		}
+
+		if err := b.AddLedger(ctx, tx, *l); err != nil {
+			return fmt.Errorf("adding ledger to bucket: %w", err)
+		}
+
+		count, err := systemStore.CountLedgersInBucket(ctx, l.Bucket)
+		if err != nil {
+			return fmt.Errorf("counting ledgers in bucket: %w", err)
+		}
+
 		ret = d.ledgerStoreFactory.Create(b, *l)
+		ret.SetAloneInBucket(count == 1)
 
 		return nil
 	})
@@ -88,12 +95,22 @@ func (d *Driver) CreateLedger(ctx context.Context, l *ledger.Ledger) (*ledgersto
 
 func (d *Driver) OpenLedger(ctx context.Context, name string) (*ledgerstore.Store, *ledger.Ledger, error) {
 	// todo: keep the ledger in cache somewhere to avoid read the ledger at each request, maybe in the factory
-	ret, err := d.systemStoreFactory.Create(d.db).GetLedger(ctx, name)
+	// NOTE: the aloneInBucket flag is now shared per bucket via the Factory,
+	// so all stores in the same bucket see updates immediately.
+	systemStore := d.systemStoreFactory.Create(d.db)
+
+	ret, err := systemStore.GetLedger(ctx, name)
 	if err != nil {
 		return nil, nil, err
 	}
 
+	count, err := systemStore.CountLedgersInBucket(ctx, ret.Bucket)
+	if err != nil {
+		return nil, nil, fmt.Errorf("counting ledgers in bucket: %w", err)
+	}
+
 	store := d.ledgerStoreFactory.Create(d.bucketFactory.Create(ret.Bucket), *ret)
+	store.SetAloneInBucket(count == 1)
 
 	return store, ret, err
 }
@@ -183,7 +200,7 @@ func (d *Driver) DeleteLedgerMetadata(ctx context.Context, name string, key stri
 	return d.systemStoreFactory.Create(d.db).DeleteLedgerMetadata(ctx, name, key)
 }
 
-func (d *Driver) ListLedgers(ctx context.Context, q common.PaginatedQuery[systemstore.ListLedgersQueryPayload]) (*bunpaginate.Cursor[ledger.Ledger], error) {
+func (d *Driver) ListLedgers(ctx context.Context, q common.PaginatedQuery[systemstore.ListLedgersQueryPayload]) (*paginate.Cursor[ledger.Ledger], error) {
 	return d.systemStoreFactory.Create(d.db).Ledgers().Paginate(ctx, q)
 }
 

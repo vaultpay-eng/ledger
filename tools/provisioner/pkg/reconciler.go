@@ -8,8 +8,8 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 
-	. "github.com/formancehq/go-libs/v4/collectionutils"
-	"github.com/formancehq/go-libs/v4/pointer"
+	. "github.com/formancehq/go-libs/v5/pkg/types/collections"
+	"github.com/formancehq/go-libs/v5/pkg/types/pointer"
 	"github.com/formancehq/ledger/pkg/client"
 	"github.com/formancehq/ledger/pkg/client/models/components"
 	"github.com/formancehq/ledger/pkg/client/models/operations"
@@ -64,7 +64,7 @@ func (r Reconciler) handleExporters(ctx context.Context, cfg Config, state *Stat
 		}
 
 		fmt.Printf("Creating exporter %s...\r\n", exporterName)
-		ret, err := r.ledgerClient.Ledger.V2.CreateExporter(ctx, components.V2ExporterConfiguration{
+		ret, err := r.ledgerClient.Ledger.V2.CreateExporter(ctx, components.V2CreateExporterRequest{
 			Driver: exporterConfig.Driver,
 			Config: exporterConfig.Config,
 		})

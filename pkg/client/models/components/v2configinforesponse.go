@@ -3,20 +3,31 @@
 package components
 
 type V2ConfigInfoResponse struct {
-	Server  string `json:"server"`
-	Version string `json:"version"`
+	Server               string   `json:"server"`
+	Version              string   `json:"version"`
+	ExperimentalFeatures []string `json:"experimentalFeatures,omitempty"`
 }
 
-func (o *V2ConfigInfoResponse) GetServer() string {
-	if o == nil {
+func (v *V2ConfigInfoResponse) GetServer() string {
+	if v == nil {
 		return ""
 	}
-	return o.Server
+	return v.Server
 }
 
-func (o *V2ConfigInfoResponse) GetVersion() string {
-	if o == nil {
+func (v *V2ConfigInfoResponse) GetVersion() string {
+	if v == nil {
 		return ""
 	}
-	return o.Version
+	return v.Version
 }
+
+func (v *V2ConfigInfoResponse) GetExperimentalFeatures() []string {
+	if v == nil {
+		return nil
+	}
+	return v.ExperimentalFeatures
+}
+
+// #region class-body-v2configinforesponse
+// #endregion class-body-v2configinforesponse

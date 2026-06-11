@@ -7,7 +7,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/formancehq/go-libs/v4/api"
+	"github.com/formancehq/go-libs/v5/pkg/transport/api"
 
 	ledger "github.com/formancehq/ledger/internal"
 	"github.com/formancehq/ledger/internal/api/common"
@@ -39,7 +39,14 @@ func importLogs(w http.ResponseWriter, r *http.Request) {
 		if err := dec.Decode(&l); err != nil {
 			if errors.Is(err, io.EOF) {
 				close(stream)
-				stream = nil
+				// Block on the import goroutine's result — it is
+				// authoritative once the stream is closed.
+				if err := <-errChan; err != nil {
+					handleError(err)
+					return
+				}
+				api.NoContent(w)
+				return
 			} else {
 				common.InternalServerError(w, r, fmt.Errorf("reading input stream: %w", err))
 				return
@@ -56,12 +63,7 @@ func importLogs(w http.ResponseWriter, r *http.Request) {
 				handleError(err)
 				return
 			}
-			if stream != nil {
-				panic("got nil error while not at the end of the stream")
-			}
-
-			api.NoContent(w)
-			return
+			panic("got nil error while not at the end of the stream")
 		}
 	}
 }

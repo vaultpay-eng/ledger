@@ -1,18 +1,31 @@
 package api
 
 import (
+	"context"
 	_ "embed"
 
+	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/go-chi/chi/v5"
 	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/fx"
 
-	"github.com/formancehq/go-libs/v4/auth"
-	"github.com/formancehq/go-libs/v4/health"
+	"github.com/formancehq/go-libs/v5/pkg/audit/httpaudit"
+	"github.com/formancehq/go-libs/v5/pkg/authn/jwt"
+	"github.com/formancehq/go-libs/v5/pkg/fx/servicefx"
 
 	"github.com/formancehq/ledger/internal/api/bulking"
 	"github.com/formancehq/ledger/internal/controller/system"
 	storagecommon "github.com/formancehq/ledger/internal/storage/common"
+)
+
+const (
+	auditEventTopic = "audit-events"
+	auditAppName    = "ledger"
+
+	// DefaultAuditAsyncQueueCapacity is the default bounded queue capacity for async HTTP audit events.
+	DefaultAuditAsyncQueueCapacity = 4096
+	// DefaultAuditAsyncWorkerCount is the default worker count for async HTTP audit publishing.
+	DefaultAuditAsyncWorkerCount = 4
 )
 
 type BulkConfig struct {
@@ -20,24 +33,64 @@ type BulkConfig struct {
 	Parallel int
 }
 
+type AuditConfig struct {
+	Enabled            bool
+	AsyncEnabled       bool
+	AsyncQueueCapacity int
+	AsyncWorkerCount   int
+}
+
 type Config struct {
-	Version    string
-	Debug      bool
-	Bulk       BulkConfig
-	Pagination storagecommon.PaginationConfig
-	Exporters  bool
+	Version              string
+	Debug                bool
+	Bulk                 BulkConfig
+	Pagination           storagecommon.PaginationConfig
+	Exporters            bool
+	ExperimentalFeatures []string
+	Audit                AuditConfig
 }
 
 func Module(cfg Config) fx.Option {
 	return fx.Options(
 		fx.Provide(func(
+			lc fx.Lifecycle,
 			backend system.Controller,
-			authenticator auth.Authenticator,
+			authenticator jwt.Authenticator,
+			publisher message.Publisher,
 			tracerProvider trace.TracerProvider,
 		) chi.Router {
+			auditOptions := []httpaudit.HTTPOption{
+				httpaudit.WithEnabled(cfg.Audit.Enabled),
+			}
+			if cfg.Audit.Enabled && cfg.Audit.AsyncEnabled {
+				queueCapacity := cfg.Audit.AsyncQueueCapacity
+				if queueCapacity <= 0 {
+					queueCapacity = DefaultAuditAsyncQueueCapacity
+				}
+				workerCount := cfg.Audit.AsyncWorkerCount
+				if workerCount <= 0 {
+					workerCount = DefaultAuditAsyncWorkerCount
+				}
+
+				asyncPublisher := httpaudit.NewAsyncPublisher(
+					publisher,
+					auditEventTopic,
+					auditAppName,
+					httpaudit.WithAsyncPublishingQueueCapacity(queueCapacity),
+					httpaudit.WithAsyncPublishingWorkerCount(workerCount),
+				)
+				lc.Append(fx.Hook{
+					OnStop: func(ctx context.Context) error {
+						return asyncPublisher.Close(ctx)
+					},
+				})
+				auditOptions = append(auditOptions, httpaudit.WithAsyncPublishing(asyncPublisher))
+			}
+
 			return NewRouter(
 				backend,
 				authenticator,
+				publisher,
 				cfg.Version,
 				cfg.Debug,
 				WithTracer(tracerProvider.Tracer("api")),
@@ -48,8 +101,10 @@ func Module(cfg Config) fx.Option {
 				)),
 				WithPaginationConfiguration(cfg.Pagination),
 				WithExporters(cfg.Exporters),
+				WithExperimentalFeatures(cfg.ExperimentalFeatures),
+				WithAuditHTTPOptions(auditOptions...),
 			)
 		}),
-		health.Module(),
+		servicefx.HealthModule(),
 	)
 }

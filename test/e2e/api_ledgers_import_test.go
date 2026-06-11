@@ -10,12 +10,12 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/uptrace/bun"
 
-	"github.com/formancehq/go-libs/v4/logging"
-	"github.com/formancehq/go-libs/v4/pointer"
-	. "github.com/formancehq/go-libs/v4/testing/api"
-	. "github.com/formancehq/go-libs/v4/testing/deferred/ginkgo"
-	"github.com/formancehq/go-libs/v4/testing/platform/pgtesting"
-	"github.com/formancehq/go-libs/v4/testing/testservice"
+	logging "github.com/formancehq/go-libs/v5/pkg/observe/log"
+	. "github.com/formancehq/go-libs/v5/pkg/testing/api"
+	. "github.com/formancehq/go-libs/v5/pkg/testing/deferred/ginkgo"
+	"github.com/formancehq/go-libs/v5/pkg/testing/platform/pgtesting"
+	"github.com/formancehq/go-libs/v5/pkg/testing/testservice"
+	"github.com/formancehq/go-libs/v5/pkg/types/pointer"
 
 	"github.com/formancehq/ledger/pkg/client/models/components"
 	"github.com/formancehq/ledger/pkg/client/models/operations"
@@ -307,7 +307,7 @@ var _ = Context("Ledger engine tests", func() {
 
 						_, err := Wait(specContext, DeferClient(testServer)).Ledger.V2.ImportLogs(ctx, operations.V2ImportLogsRequest{
 							Ledger:              ledgerCopyName,
-							V2ImportLogsRequest: response.HTTPMeta.Response.Body,
+							V2ImportLogsRequest: response.Bytes,
 						})
 						return err
 					}
