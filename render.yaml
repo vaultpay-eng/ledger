@@ -14,7 +14,7 @@ services:
     name: formance-ledger-prod
     runtime: image
     image:
-      url: ghcr.io/formancehq/ledger:v2.3.0
+      url: ghcr.io/formancehq/ledger:v2.4.12
     plan: standard
     dockerCommand: ledger serve
     healthCheckPath: /_healthcheck
@@ -54,7 +54,7 @@ services:
     name: formance-worker-prod
     runtime: image
     image:
-      url: ghcr.io/formancehq/ledger:v2.3.0
+      url: ghcr.io/formancehq/ledger:v2.4.12
     plan: starter
     dockerCommand: ledger worker
     envVars:
@@ -90,7 +90,7 @@ services:
     name: formance-ledger-dashboard
     runtime: image
     image:
-      url: ghcr.io/formancehq/console-v3:v1.17.0
+      url: ghcr.io/formancehq/console-v3:v2.6.2
     plan: starter
     envVars:
       - key: PORT
@@ -98,6 +98,8 @@ services:
       - key: MICRO_STACK
         value: "1"
       - key: API_URL
+        value: "https://formance-gateway-prod.onrender.com/api"
+      - key: API_STACK_URL
         value: "https://formance-gateway-prod.onrender.com/api"
       - key: COOKIE_SECRET
         sync: false
