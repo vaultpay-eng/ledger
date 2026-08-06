@@ -41,6 +41,8 @@ services:
         value: "true"
       - key: EXPERIMENTAL_FEATURES
         value: "true"
+      - key: EXPERIMENTAL_EXPORTERS
+        value: "true"
       - key: BULK_PARALLEL
         value: "10"
       - key: EXPERIMENTAL_NUMSCRIPT_INTERPRETER
